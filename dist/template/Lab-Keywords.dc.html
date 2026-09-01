@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: oklch(0.985 0.002 250); }
+  a { color: oklch(0.42 0.09 195); text-decoration: none; }
+  a:hover { color: oklch(0.32 0.09 195); }
+</style>
+</helmet>
+<div style="min-height:100vh;background:oklch(0.985 0.002 250);color:oklch(0.2 0.01 250);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:20px;line-height:1.65;-webkit-font-smoothing:antialiased">
+
+  <header style="border-bottom:1px solid oklch(0.91 0.003 250)">
+    <div style="max-width:1080px;margin:0 auto;padding:18px 40px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+      <a href="../" style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:oklch(0.2 0.01 250)">Jakapun Tachaiya</a>
+      <a href="../" aria-label="Back to Jakapun Tachaiya main page" style="position:fixed;top:16px;right:16px;z-index:2147483647;padding:9px 14px;border:1px solid rgba(80,75,65,.22);border-radius:999px;background:rgba(255,255,255,.94);color:#2a2722;text-decoration:none;font:500 12px/1.2 'IBM Plex Mono',monospace;box-shadow:0 4px 18px rgba(30,28,24,.12);backdrop-filter:blur(10px)">← Back to main page</a>
+    </div>
+  </header>
+
+  <section style="max-width:1080px;margin:0 auto;padding:72px 40px 36px">
+    <p style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:oklch(0.42 0.09 195);margin:0 0 22px">Interactive lesson · 03</p>
+    <h1 style="font-size:clamp(32px,4.2vw,48px);font-weight:300;line-height:1.14;letter-spacing:-0.022em;margin:0 0 24px;text-wrap:balance">Keyword expansion demo</h1>
+    <p style="font-size:21px;line-height:1.6;color:oklch(0.28 0.01 250);max-width:62ch;margin:0;text-wrap:pretty">Every word sits at a coordinate in embedding space. Start from a few seeds, then expand — each round pulls in whatever is nearest, and each round the frontier creeps further from where you started.</p>
+  </section>
+
+  <section style="max-width:1080px;margin:0 auto;padding:16px 40px 40px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:28px">
+      <div style="flex:1 1 300px">
+        <label style="display:block;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:oklch(0.45 0.01 250);margin:0 0 10px">Seed domain</label>
+        <div style="display:flex;gap:1px;background:oklch(0.88 0.004 250);border:1px solid oklch(0.88 0.004 250);font-family:'IBM Plex Mono',monospace;font-size:13.5px;flex-wrap:wrap">
+          <button type="button" onClick="{{ pickSec }}" style="padding:10px 16px;border:0;background:{{ secBg }};color:{{ secFg }};cursor:pointer;font:inherit">security</button>
+          <button type="button" onClick="{{ pickPol }}" style="padding:10px 16px;border:0;background:{{ polBg }};color:{{ polFg }};cursor:pointer;font:inherit">politics</button>
+          <button type="button" onClick="{{ pickHea }}" style="padding:10px 16px;border:0;background:{{ heaBg }};color:{{ heaFg }};cursor:pointer;font:inherit">health</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:13.5px">
+        <button type="button" onClick="{{ expand }}" style="padding:11px 20px;border:1px solid oklch(0.2 0.01 250);background:oklch(0.2 0.01 250);color:oklch(0.98 0.002 250);cursor:pointer;font:inherit">Expand ▸ round {{ nextRound }}</button>
+        <button type="button" onClick="{{ reset }}" style="padding:11px 20px;border:1px solid oklch(0.88 0.004 250);background:oklch(0.995 0.001 250);color:oklch(0.35 0.01 250);cursor:pointer;font:inherit">Reset</button>
+      </div>
+    </div>
+
+    <div style="border:1px solid oklch(0.9 0.004 250);background:oklch(0.995 0.001 250);padding:20px 24px 24px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+        <p style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:0.08em;text-transform:uppercase;color:oklch(0.48 0.01 250);margin:0">Embedding space · 2D projection</p>
+        <p style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:oklch(0.48 0.01 250);margin:0">frontier radius {{ radius }}</p>
+      </div>
+
+      <div style="position:relative;width:100%;max-width:620px;margin:0 auto;aspect-ratio:1 / 1;background-image:linear-gradient(oklch(0.945 0.004 250) 1px,transparent 1px),linear-gradient(90deg,oklch(0.945 0.004 250) 1px,transparent 1px);background-size:10% 10%;border:1px solid oklch(0.93 0.004 250)">
+        <div style="position:absolute;left:0;right:0;top:50%;height:1px;background:oklch(0.88 0.004 250)"></div>
+        <div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:oklch(0.88 0.004 250)"></div>
+
+        <div style="position:absolute;left:{{ ringLeft }};top:{{ ringTop }};width:{{ ringW }};height:{{ ringH }};transform:translate(-50%,-50%);border:1px dashed oklch(0.72 0.06 195);border-radius:50%;background:oklch(0.42 0.09 195 / 0.04);transition:width 260ms ease,height 260ms ease"></div>
+
+        <sc-for list="{{ points }}" as="p" hint-placeholder-count="12">
+          <div style="position:absolute;left:{{ p.left }};top:{{ p.top }};transform:translate(-50%,-50%);display:flex;flex-direction:{{ p.dir }};align-items:center;gap:5px;z-index:{{ p.z }}">
+            <div style="width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.fill }};border:1px solid {{ p.stroke }};flex:none"></div>
+            <sc-if value="{{ p.showLabel }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;align-items:center;line-height:1.3;white-space:nowrap;background:oklch(0.995 0.001 250 / 0.9);padding:0 4px">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:{{ p.label }}">{{ p.text }}</span>
+                <sc-if value="{{ p.showCoord }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:{{ p.coordColor }}">{{ p.coord }}</span>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:20px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:oklch(0.45 0.01 250)">
+        <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:oklch(0.2 0.01 250)"></span>seed</span>
+        <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:oklch(0.42 0.09 195)"></span>pulled in</span>
+        <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:oklch(0.62 0.13 40)"></span>drifted out of domain</span>
+        <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:oklch(0.995 0.001 250);border:1px solid oklch(0.82 0.006 250)"></span>not yet reached</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1px;background:oklch(0.9 0.004 250);border:1px solid oklch(0.9 0.004 250);margin-top:28px">
+      <sc-for list="{{ rounds }}" as="r" hint-placeholder-count="1">
+        <div style="background:oklch(0.995 0.001 250);padding:22px 24px;display:grid;grid-template-columns:minmax(0,110px) minmax(0,1fr);gap:24px;align-items:start">
+          <div>
+            <p style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:oklch(0.2 0.01 250);margin:0 0 3px">{{ r.title }}</p>
+            <p style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:oklch(0.5 0.01 250);margin:0">{{ r.meta }}</p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ r.words }}" as="w" hint-placeholder-count="6">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1.4;padding:6px 11px;background:{{ w.bg }};border:1px solid {{ w.border }};color:{{ w.fg }};display:flex;gap:9px;align-items:baseline">{{ w.text }}<span style="font-size:11px;color:{{ w.dimFg }}">{{ w.coord }}</span></span>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1080px;margin:0 auto;padding:40px;border-top:1px solid oklch(0.91 0.003 250);display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:56px">
+    <h2 style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:oklch(0.34 0.01 250);margin:6px 0 0">The problem</h2>
+    <p style="font-size:19px;line-height:1.65;color:oklch(0.3 0.01 250);max-width:64ch;margin:0;text-wrap:pretty">Nearest-neighbour expansion is cheap and it works — for two rounds. After that the frontier has travelled far enough that "nearest" no longer means "in the same domain", and your lexicon quietly stops describing what you started with. The fix is to score each candidate against the seed region, not just against its nearest neighbour.</p>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const DOMAINS = {
+  security: {
+    seeds: ["exploit", "botnet", "phishing"],
+    pool: ["malware", "payload", "keylogger", "rootkit", "credential dump", "ransomware", "zero-day", "carding", "proxy", "spam list", "darknet", "escrow", "vendor rating", "shipping", "reviews"]
+  },
+  politics: {
+    seeds: ["impeachment", "hearing", "testimony"],
+    pool: ["subpoena", "witness", "transcript", "counsel", "inquiry", "partisan", "acquittal", "floor vote", "polling", "primary", "fundraising", "ad spend", "turnout", "merch", "rally tickets"]
+  },
+  health: {
+    seeds: ["symptom", "dosage", "side effect"],
+    pool: ["prescription", "onset", "tapering", "withdrawal", "contraindication", "generic", "pharmacy", "insurance", "refill", "supplement", "shipping", "discount code", "reviews", "bulk order", "coupon"]
+  }
+};
+
+const PER_ROUND = 5;
+const DRIFT_AT = 0.95;
+
+function hash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) / 4294967295;
+}
+
+function layout(domain) {
+  const cfg = DOMAINS[domain];
+  const pts = {};
+  cfg.seeds.forEach((w, i) => {
+    const a = (i / cfg.seeds.length) * Math.PI * 2 + 0.5;
+    const r = 0.3 + hash(w + "r") * 0.02;
+    pts[w] = { x: Math.cos(a) * r, y: Math.sin(a) * r, seed: true };
+  });
+  cfg.pool.forEach((w, i) => {
+    const tier = Math.floor(i / PER_ROUND);
+    const j = i % PER_ROUND;
+    const r = 0.55 + tier * 0.25 + hash(w + "r") * 0.04;
+    const a = (j / PER_ROUND) * Math.PI * 2 + tier * 0.62 + hash(w) * 0.2;
+    pts[w] = { x: Math.cos(a) * r, y: Math.sin(a) * r, seed: false };
+  });
+  return pts;
+}
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const fmt = (p) => "(" + p.x.toFixed(2) + ", " + p.y.toFixed(2) + ")";
+
+class Component extends DCLogic {
+  state = { domain: "security", round: 0 };
+
+  pick(d) { this.setState({ domain: d, round: 0 }); }
+
+  compute() {
+    const { domain, round } = this.state;
+    const cfg = DOMAINS[domain];
+    const pts = layout(domain);
+    const revealed = cfg.seeds.slice();
+    const batches = [];
+    let remaining = cfg.pool.slice();
+    for (let r = 0; r < round && remaining.length; r++) {
+      const scored = remaining.map((w) => {
+        let best = Infinity, from = revealed[0];
+        for (const rv of revealed) { const d = dist(pts[w], pts[rv]); if (d < best) { best = d; from = rv; } }
+        return { w, d: best, from };
+      }).sort((a, b) => a.d - b.d).slice(0, PER_ROUND);
+      batches.push(scored);
+      for (const s of scored) { revealed.push(s.w); remaining = remaining.filter((x) => x !== s.w); }
+    }
+    return { cfg, pts, batches, revealed, exhausted: remaining.length === 0 };
+  }
+
+  renderVals() {
+    const { domain, round } = this.state;
+    const { cfg, pts, batches, revealed, exhausted } = this.compute();
+    const revealedSet = new Set(revealed);
+    const cx0 = cfg.seeds.reduce((a, w) => a + pts[w].x, 0) / cfg.seeds.length;
+    const cy0 = cfg.seeds.reduce((a, w) => a + pts[w].y, 0) / cfg.seeds.length;
+    const drifted = (w) => Math.hypot(pts[w].x - cx0, pts[w].y - cy0) > DRIFT_AT;
+
+    const SPAN = 1.45;
+    const pos = (p) => ({
+      left: ((p.x / SPAN + 1) / 2 * 100).toFixed(2) + "%",
+      top: ((1 - (p.y / SPAN + 1) / 2) * 100).toFixed(2) + "%"
+    });
+
+    const latest = new Set((batches[batches.length - 1] || []).map((s) => s.w));
+    const points = Object.keys(pts).map((w) => {
+      const p = pts[w];
+      const shown = revealedSet.has(w);
+      const dr = shown && !p.seed && drifted(w);
+      const fill = !shown ? "oklch(0.995 0.001 250)" : p.seed ? "oklch(0.2 0.01 250)" : dr ? "oklch(0.62 0.13 40)" : "oklch(0.42 0.09 195)";
+      const stroke = !shown ? "oklch(0.82 0.006 250)" : fill;
+      return {
+        text: w,
+        ...pos(p),
+        size: p.seed ? "12px" : shown ? "10px" : "8px",
+        fill, stroke,
+        z: latest.has(w) ? 3 : shown ? 2 : 1,
+        dir: p.x < -0.02 ? "row-reverse" : "row",
+        label: !shown ? "oklch(0.62 0.008 250)" : dr ? "oklch(0.45 0.12 40)" : "oklch(0.2 0.01 250)",
+        showLabel: shown,
+        showCoord: latest.has(w) || (p.seed && !batches.length),
+        coord: fmt(p),
+        coordColor: dr ? "oklch(0.55 0.1 40)" : "oklch(0.55 0.01 250)"
+      };
+    });
+
+
+
+    const chip = (w, dr) => ({
+      text: w,
+      coord: fmt(pts[w]),
+      bg: dr ? "oklch(0.96 0.025 40)" : "oklch(0.955 0.005 250)",
+      border: dr ? "oklch(0.86 0.06 40)" : "oklch(0.91 0.004 250)",
+      fg: dr ? "oklch(0.42 0.11 40)" : "oklch(0.25 0.01 250)",
+      dimFg: dr ? "oklch(0.56 0.09 40)" : "oklch(0.55 0.01 250)"
+    });
+
+    const rounds = [{
+      title: "Seeds",
+      meta: cfg.seeds.length + " terms",
+      words: cfg.seeds.map((w) => chip(w, false))
+    }];
+    batches.forEach((b, i) => {
+      const nd = b.filter((s) => drifted(s.w)).length;
+      rounds.push({
+        title: "Round " + (i + 1),
+        meta: b.length + " added · " + (nd ? nd + " drifted" : "on domain") + " · d≈" + (b.reduce((a, s) => a + s.d, 0) / b.length).toFixed(2),
+        words: b.map((s) => chip(s.w, drifted(s.w)))
+      });
+    });
+
+    const cx = cfg.seeds.reduce((a, w) => a + pts[w].x, 0) / cfg.seeds.length;
+    const cy = cfg.seeds.reduce((a, w) => a + pts[w].y, 0) / cfg.seeds.length;
+    const frontier = Math.max(...revealed.map((w) => Math.hypot(pts[w].x - cx, pts[w].y - cy)));
+    const ring = pos({ x: cx, y: cy });
+    const ringSpan = ((frontier + 0.06) * 2 / (SPAN * 2) * 100).toFixed(2) + "%";
+    const active = "oklch(0.2 0.01 250)", idle = "oklch(0.995 0.001 250)";
+    const on = (d) => domain === d;
+
+    return {
+      points, rounds,
+      radius: frontier.toFixed(2),
+      ringLeft: ring.left, ringTop: ring.top, ringW: ringSpan, ringH: ringSpan,
+      nextRound: exhausted ? round : round + 1,
+      expand: () => this.setState((s) => ({ round: s.round + 1 })),
+      reset: () => this.setState({ round: 0 }),
+      pickSec: () => this.pick("security"),
+      pickPol: () => this.pick("politics"),
+      pickHea: () => this.pick("health"),
+      secBg: on("security") ? active : idle,
+      secFg: on("security") ? "oklch(0.98 0.002 250)" : "oklch(0.35 0.01 250)",
+      polBg: on("politics") ? active : idle,
+      polFg: on("politics") ? "oklch(0.98 0.002 250)" : "oklch(0.35 0.01 250)",
+      heaBg: on("health") ? active : idle,
+      heaFg: on("health") ? "oklch(0.98 0.002 250)" : "oklch(0.35 0.01 250)"
+    };
+  }
+}
+</script>
+</body>
+</html>
