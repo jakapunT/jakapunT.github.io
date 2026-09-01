@@ -66,7 +66,7 @@ export default function App() {
         <a className="dropdown-all" href="#teaching" onClick={()=>setOpen(false)}>All teaching →</a>
       </div></details>
       <details className="nav-dropdown"><summary>Interactive Lessons <span aria-hidden="true">▾</span></summary><div className="dropdown-menu lesson-menu">
-        <a href="dashboard/Lab-Tokenizer.dc.html"><strong>Tokenisation playground</strong><small>dashboard · type your own text</small></a>
+        <a href="dashboard/Lab-Tokenizer.dc.html"><strong>Tokenization playground</strong><small>dashboard · type your own text</small></a>
         <a href="dashboard/Lab-Keywords.dc.html"><strong>Keyword expansion demo</strong><small>dashboard · seed → domain lexicon</small></a>
         <a href="dashboard/Lab%20-%20SynthID.html"><strong>SynthID</strong><small>word choice · hypothesis testing</small></a>
         <a href="dashboard/Lab%20-%20Neural%20Network%20Explainer.html"><strong>Neural network explainer</strong><small>forward pass · backpropagation</small></a>
