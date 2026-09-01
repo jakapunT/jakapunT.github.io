@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: oklch(0.985 0.002 250); }
+  a { color: oklch(0.42 0.09 195); text-decoration: none; }
+  a:hover { color: oklch(0.32 0.09 195); }
+</style>
+</helmet>
+<div style="min-height:100vh;background:oklch(0.985 0.002 250);color:oklch(0.2 0.01 250);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:20px;line-height:1.65;-webkit-font-smoothing:antialiased">
+
+  <header style="border-bottom:1px solid oklch(0.91 0.003 250)">
+    <div style="max-width:1080px;margin:0 auto;padding:18px 40px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+      <a href="../" style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:oklch(0.2 0.01 250)">Jakapun Tachaiya</a>
+      <a href="../" aria-label="Back to Jakapun Tachaiya main page" style="position:fixed;top:16px;right:16px;z-index:2147483647;padding:9px 14px;border:1px solid rgba(80,75,65,.22);border-radius:999px;background:rgba(255,255,255,.94);color:#2a2722;text-decoration:none;font:500 12px/1.2 'IBM Plex Mono',monospace;box-shadow:0 4px 18px rgba(30,28,24,.12);backdrop-filter:blur(10px)">← Back to main page</a>
+    </div>
+  </header>
+
+  <section style="max-width:1080px;margin:0 auto;padding:72px 40px 40px">
+    <p style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:oklch(0.42 0.09 195);margin:0 0 22px">Interactive lesson · 01</p>
+    <h1 style="font-size:clamp(32px,4.2vw,48px);font-weight:300;line-height:1.14;letter-spacing:-0.022em;margin:0 0 24px;text-wrap:balance">Tokenisation playground</h1>
+    <p style="font-size:21px;line-height:1.6;color:oklch(0.28 0.01 250);max-width:62ch;margin:0;text-wrap:pretty">Every NLP pipeline starts by deciding what counts as a word. Type something below and watch three tokenisers disagree.</p>
+  </section>
+
+  <section style="max-width:1080px;margin:0 auto;padding:24px 40px 40px">
+    <label for="txt" style="display:block;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:oklch(0.45 0.01 250);margin:0 0 10px">Your text</label>
+    <textarea id="txt" rows="3" value="{{ text }}" onChange="{{ onText }}" style="width:100%;box-sizing:border-box;font-family:'IBM Plex Mono',monospace;font-size:17px;line-height:1.7;color:oklch(0.2 0.01 250);background:oklch(0.995 0.001 250);border:1px solid oklch(0.88 0.004 250);padding:16px 18px;resize:vertical;outline:none" style-focus="border-color:oklch(0.55 0.09 195)"></textarea>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0;font-family:'IBM Plex Mono',monospace;font-size:13.5px">
+      <button type="button" onClick="{{ pick0 }}" style="padding:9px 16px;border:1px solid oklch(0.88 0.004 250);background:oklch(0.995 0.001 250);color:oklch(0.3 0.01 250);cursor:pointer;font:inherit" style-hover="border-color:oklch(0.6 0.02 250)">Sample: forum post</button>
+      <button type="button" onClick="{{ pick1 }}" style="padding:9px 16px;border:1px solid oklch(0.88 0.004 250);background:oklch(0.995 0.001 250);color:oklch(0.3 0.01 250);cursor:pointer;font:inherit" style-hover="border-color:oklch(0.6 0.02 250)">Sample: URLs &amp; emoji</button>
+      <button type="button" onClick="{{ pick2 }}" style="padding:9px 16px;border:1px solid oklch(0.88 0.004 250);background:oklch(0.995 0.001 250);color:oklch(0.3 0.01 250);cursor:pointer;font:inherit" style-hover="border-color:oklch(0.6 0.02 250)">Sample: contractions</button>
+    </div>
+  </section>
+
+  <section style="max-width:1080px;margin:0 auto;padding:0 40px 56px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px">
+    <sc-for list="{{ tokenizers }}" as="t" hint-placeholder-count="3">
+      <div style="border:1px solid oklch(0.9 0.004 250);background:oklch(0.995 0.001 250);padding:22px 22px 24px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <h2 style="font-size:19px;font-weight:500;margin:0 0 5px">{{ t.name }}</h2>
+          <p style="font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.6;color:oklch(0.45 0.01 250);margin:0">{{ t.rule }}</p>
+        </div>
+        <p style="font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:500;line-height:1;margin:0;color:oklch(0.42 0.09 195)">{{ t.count }}<span style="font-size:13px;font-weight:400;color:oklch(0.5 0.01 250);margin-left:8px">tokens</span></p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ t.tokens }}" as="tok" hint-placeholder-count="8">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.4;padding:5px 9px;background:oklch(0.955 0.005 250);border:1px solid oklch(0.91 0.004 250);color:oklch(0.25 0.01 250)">{{ tok }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </section>
+
+  <section style="max-width:1080px;margin:0 auto;padding:40px;border-top:1px solid oklch(0.91 0.003 250);display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:56px">
+    <h2 style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:oklch(0.34 0.01 250);margin:6px 0 0">Why it matters</h2>
+    <p style="font-size:19px;line-height:1.65;color:oklch(0.3 0.01 250);max-width:64ch;margin:0;text-wrap:pretty">The three counts above are all defensible, and they will give you three different frequency tables, three different vocabularies, and three different models. Before you report a number, say which tokeniser produced it.</p>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SAMPLES = [
+  "Honestly I don't think the new policy will change anyone's mind — it's the same argument we had in 2019.",
+  "source: https://example.org/thread/1182 lol 😂 that's wild #impeachment",
+  "They're saying it can't be done, but we've seen it work — o'clock, state-of-the-art, U.S."
+];
+
+class Component extends DCLogic {
+  state = { text: SAMPLES[0] };
+  set(i) { this.setState({ text: SAMPLES[i] }); }
+  renderVals() {
+    const text = this.state.text;
+    const ws = text.split(/\s+/).filter(Boolean);
+    const punct = text.match(/[\p{L}\p{N}'][\p{L}\p{N}'\u0300-\u036f]*|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*|[^\s\p{L}\p{N}]/gu) || [];
+    const sub = [];
+    for (const w of ws) {
+      const cp = Array.from(w);
+      if (cp.length <= 5) { sub.push(w); continue; }
+      for (let i = 0; i < cp.length; i += 4) { sub.push((i ? "##" : "") + cp.slice(i, i + 4).join("")); }
+    }
+    const cap = (a) => a.slice(0, 40);
+    return {
+      text,
+      onText: (e) => this.setState({ text: e.target.value }),
+      pick0: () => this.set(0),
+      pick1: () => this.set(1),
+      pick2: () => this.set(2),
+      tokenizers: [
+        { name: "Whitespace", rule: "split on spaces", count: ws.length, tokens: cap(ws) },
+        { name: "Word + punctuation", rule: "punctuation as its own token", count: punct.length, tokens: cap(punct) },
+        { name: "Subword", rule: "long words broken into pieces", count: sub.length, tokens: cap(sub) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

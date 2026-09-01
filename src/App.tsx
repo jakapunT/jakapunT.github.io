@@ -1,202 +1,87 @@
-import React, { useState } from 'react';
-import { User, Building, BookOpen, FileText, Mail, Github, Linkedin, Twitter, MapPin, ExternalLink, Phone, Home, Menu, X } from 'lucide-react';
-import AboutSection from './components/AboutSection';
-import LabsSection from './components/LabsSection';
-import ActivitiesSection from './components/ActivitiesSection';
-import PublicationsSection from './components/PublicationsSection';
-import CVSection from './components/CVSection';
+import { useEffect, useState } from 'react';
+import { ArrowUpRight, Download, Menu, X } from 'lucide-react';
+import { findCourse, type Course } from './courseData';
 
-function App() {
-  const [activeTab, setActiveTab] = useState('about');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const research = [
+  ['Large Language Models', 'Building and adapting language models, with a particular focus on Thai.'],
+  ['Retrieval-Augmented Generation', 'Connecting generative systems with trustworthy, domain-specific information.'],
+  ['Sentiment & social behaviour', 'Measuring opinion, stance, trends, and behaviour in online discussion.'],
+  ['Applied language technology', 'Conversational AI, information extraction, summarisation, multilingual and healthcare NLP.'],
+];
+const publications = [
+  ['2024', "Investigating the Influence of Psychologists' Recommendations on Thai Juvenile Court Judgements", 'Praingcharoenkit, C., Sangkhao, S., Kawto, W., Rutherford, A. T., & Tachaiya, J.', '21st International Joint Conference on Computer Science and Software Engineering (JCSSE) · Bangkok, Thailand', 'https://doi.org/10.1109/jcsse61278.2024.10613718'],
+  ['2022', 'IKEA: Unsupervised domain-specific keyword-expansion', 'Tachaiya, J., Gharibshah, J., Imani, A., Papalexakis, E. E., & Faloutsos, M.', 'IEEE/ACM International Conference on Advances in Social Networks Analysis and Mining (ASONAM) · Istanbul, Turkey', 'https://doi.org/10.1109/asonam55973.2022.10088556'],
+  ['2021', 'SentiStance: quantifying the intertwined changes of sentiment and stance in response to an event in online forums', 'Tachaiya, J., Gharibshah, J., Irani, A., Esterling, K. M., & Faloutsos, M.', 'IEEE/ACM International Conference on Advances in Social Networks Analysis and Mining (ASONAM) · The Hague, Netherlands', 'https://doi.org/10.1145/3467351.3490966'],
+  ['2020', 'RAFFMAN: Measuring and Analyzing Sentiment in Online Political Forum Discussions with an Application to the Trump Impeachment', 'Tachaiya, J., Gharibshah, J., & Esterling, K. M.', 'International AAAI Conference on Web and Social Media (ICWSM) · Atlanta, Georgia', 'https://doi.org/10.1609/icwsm.v15i1.18096'],
+  ['2020', 'RThread: A thread-centric analysis of security forums', 'Tachaiya, J., Gharibshah, J., Papalexakis, E. E., & Faloutsos, M.', 'IEEE/ACM International Conference on Advances in Social Networks Analysis and Mining (ASONAM) · The Hague, Netherlands', 'https://doi.org/10.1109/asonam49781.2020.9381312'],
+];
+const current = [['Chinjuta Sa-Ngasaeng','LangTech BA student'],['Thanete Wutiwan','LangTech BA student'],['Jirapach Rungruengsrisang','LangTech BA student']];
+const alumni = [
+  ['Nanthipat Kongborrirak','LangTech BA · 2024','Assessment of a Large Language Model’s Reading and Comprehension Proficiency in the Thai Language'],
+  ['Tayawat Songcharoensuk','ComSci, KMITL · 2024','Developing Aspect-Based Sentiment Analysis Methods Through Prompt Engineering'],['Witchaya Panpradit','ComSci, KMITL · 2024','Developing Aspect-Based Sentiment Analysis Methods Through Prompt Engineering'],
+  ['Chonnasat Gunngam','ComSci, KMITL · 2024','Evaluating Techniques and Methods for Text-to-Image Generation'],['Chaichan Sampaosong','ComSci, KMITL · 2024','Evaluating Techniques and Methods for Text-to-Image Generation'],
+  ['Rachata Phuphirom','ComSci, KMITL · 2024','Developing Chatbot for School of Science KMITL With Retrieval Augmented Generation'],['Akesila Potong','ComSci, KMITL · 2024','Developing Chatbot for School of Science KMITL With Retrieval Augmented Generation'],
+  ['Chadathip Prangkulcharoenkit','ComSci, KMITL · 2023','Court Verdict Classification and Prediction in Thai Juvenile and Family Courts'],['Sirirat Sanghkao','ComSci, KMITL · 2023','Court Verdict Classification and Prediction in Thai Juvenile and Family Courts'],
+  ['Wanwisa Kawto','ComSci, KMITL · 2023','Automated Expert Recommendation Generation for Thai Juvenile Cases using Natural Language Processing'],['Tanawat Kaewmanee','ComSci, KMITL · 2023','Headlines Generation for Thai News: Engaging Readers with AI-Generated Titles with Emotions'],['Tuntorn Chongsakul','ComSci, KMITL · 2023','Headlines Generation for Thai News: Engaging Readers with AI-Generated Titles with Emotions'],
+];
+const teaching = [
+  ['Fall 2026','Natural Language Processing','ISE, Chulalongkorn','Undergrad · International'],['Fall 2026','Statistics for Digital Humanities','LangTech, Chulalongkorn','Undergrad · Thai'],['Fall 2026','Programming for Natural Language Processing','LangTech, Chulalongkorn','Undergrad · Thai'],['Spring 2026','Large language model','LangTech, Chulalongkorn','Graduate · Thai'],
+  ['Fall 2025','Natural Language Processing','ISE, Chulalongkorn','Undergrad · International'],['Fall 2025','Statistics for Digital Humanities','LangTech, Chulalongkorn','Undergrad · Thai'],['Fall 2025','Programming for Natural Language Processing','LangTech, Chulalongkorn','Undergrad · Thai'],['Spring 2025','Large language model','LangTech, Chulalongkorn','Graduate · Thai'],
+  ['Fall 2024','Foundation of Programming','KMITL','Undergrad · International'],['Fall 2024','Intro to Natural Language Processing','KMITL','Undergrad · Thai'],['Fall 2024','Data Science Programming & Tools','KMITL','Graduate · Thai'],['Fall 2024','Generative AI','KMITL','Graduate · Thai'],['Fall 2024','Programming for Natural Language Processing','LangTech, Chulalongkorn','Undergrad · Thai'],
+  ['Spring 2024','Intro to Natural Language Processing','KMITL','Undergrad · Thai'],['Spring 2024','Database Programming in Practice','KMITL','Undergrad · International'],['Spring 2024','Intro to data science','KMITL','Undergrad · International'],['Fall 2023','Intro to Natural Language Processing','KMITL','Undergrad · Thai'],['Fall 2023','Foundation of Programming','KMITL','Undergrad · International'],['Spring 2023','Intro to NLP','KMITL','Undergrad · Thai'],['Spring 2023','Intro to data science','KMITL','Undergrad · International'],['Fall 2022','Web mining','KMITL','Undergrad · Thai'],['Fall 2022','Intro to NLP','KMITL','Undergrad · Thai'],
+];
+const talks = [['April 2025','Generative AI for daily work','Thailand Institute of Scientific and Technological Research','Workshop · Thailand'],['Feb 2025','Generative AI for daily work','EC GROUP Head Office','Workshop · Thailand'],['July 2025','Intro to LLM and Gen AI workshop','Thammasat medical school','Workshop · Thailand'],['Sep 2024','Accelerating Machine Learning Process with LLMs: Beyond Traditional Task-Specific Training','KMITL Virtual Workshop','Virtual Workshop · Thailand'],['Sep 2024','Generative AI for daily work','Thailand Institute of Scientific and Technological Research','Workshop · Thailand']];
+const education = [['2017–2022','Ph.D. in Computer Science','University of California, Riverside','USA · Advisor: Michalis Faloutsos'],['2014–2016','M.S. in Computer Science','University of Southern California','USA'],['2009–2012','B.E. in Computer Engineering','Chulalongkorn University','Thailand']];
+const experience = [['2025–ongoing','Full-time lecturer','Linguistics Department, Chulalongkorn University','Thailand'],['2023–2025','Full-time lecturer','Computer Science Department, KMITL','Thailand'],['2021–2022','Research Lab Leader','UC Riverside','USA · Led student data-science projects on social media and contributed to an NSF-funded grant.'],['2016–2017','Research Assistant','Spatial Sciences Institute, USC','USA · Interpreted and analysed spatial data using advanced NoSQL techniques.']];
 
-  const tabs = [
-    { id: 'about', label: 'About', icon: User },
-    { id: 'labs', label: 'Research Labs', icon: Building },
-    { id: 'publications', label: 'Publications', icon: FileText },
-    { id: 'activities', label: 'Teaching', icon: BookOpen },
-    { id: 'cv', label: 'CV', icon: FileText },
-  ];
+const Timeline = ({items}:{items:string[][]}) => <div className="timeline">{items.map(([date,title,place,meta],i)=><article key={`${date}-${title}-${i}`}><time>{date}</time><div><h4>{title}</h4><p>{place}</p><span>{meta}</span></div></article>)}</div>;
+const Label = ({n,children}:{n:string,children:string}) => <div className="label"><span>{n}</span><h2>{children}</h2></div>;
+const CoursePage = ({course}:{course:Course}) => {
+  useEffect(()=>{document.title=`${course.title} — Jakapun Tachaiya`; return()=>{document.title='Jakapun Tachaiya — NLP Researcher'}},[course.title]);
+  return <div className="course-page">
+    <header><div className="header-inner"><a className="wordmark" href="./">Jakapun Tachaiya</a><nav className="course-nav"><a href="./#teaching">← All teaching</a><a href="mailto:jakapun.t@chula.ac.th">Contact</a></nav></div></header>
+    <main>
+      <section className="course-hero"><p className="eyebrow">Course · Department of Linguistics · Chulalongkorn University</p><h1>{course.title}</h1><p className="lead">{course.shortDescription}</p></section>
+      <section className="course-layout"><aside><span>Course overview</span></aside><div className="course-description">{course.description.map((paragraph)=><p key={paragraph}>{paragraph}</p>)}</div></section>
+      <section className="course-layout topics-section"><aside><span>Learning path</span></aside><div><p className="progression">{course.progression}</p><h2>Major topics</h2><div className="course-topics">{course.topics.map((topic)=><article key={topic.title}><h3>{topic.title}</h3><ul>{topic.items.map((item)=><li key={item}>{item}</li>)}</ul></article>)}</div></div></section>
+    </main>
+    <footer><div className="course-footer"><div><p className="footer-kicker">Questions about this course?</p><a className="footer-email" href="mailto:jakapun.t@chula.ac.th">jakapun.t@chula.ac.th</a></div><a href="./#teaching">Return to all teaching →</a></div></footer>
+  </div>;
+};
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'about':
-        return <AboutSection />;
-      case 'labs':
-        return <LabsSection />;
-      case 'activities':
-        return <ActivitiesSection />;
-      case 'publications':
-        return <PublicationsSection />;
-      case 'cv':
-        return <CVSection />;
-      default:
-        return <AboutSection />;
-    }
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-white">
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-8 rounded-lg overflow-hidden shadow-md">
-              <img 
-                src="IMG_5438.jpg" 
-                alt="Profile" 
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">jakapun Tachaiya</h1>
-              <p className="text-xs text-gray-600">NLP Researcher</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50" onClick={closeMobileMenu}>
-          <div className="fixed inset-y-0 left-0 w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 overflow-y-auto h-full">
-              {/* Profile Section */}
-              <div className="text-center mb-6 pt-20">
-                <div className="w-32 h-40 mx-auto rounded-lg overflow-hidden shadow-lg mb-4">
-                  <img 
-                    src="IMG_5438.jpg" 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">Jakapun Tachaiya</h1>
-              </div>
-
-
-            {/* Contact Info */}
-            <div className="space-y-3 mb-8 text-sm">
-              <div className="flex items-center gap-3 text-gray-700 hover:text-gray-900 transition-colors">
-                <Home size={16} className="text-gray-500" />
-                <span>Linguistic Department, Chulalongkorn University</span>
-              </div>
-              <div className="flex items-center gap-3 text-gray-700 hover:text-gray-900 transition-colors">
-                <MapPin size={16} className="text-gray-500" />
-                <span>Bangkok, Thailand</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Mail size={16} className="text-gray-500" />
-                <a href="mailto:your.email@university.edu" className="text-blue-600 hover:text-blue-800 transition-colors">
-                 jakapun.t@chula.ac.th
-                </a>
-              </div>
-            </div>
-
-              {/* Navigation */}
-              <nav className="space-y-1">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        closeMobileMenu();
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-all duration-200 ${
-                        activeTab === tab.id
-                          ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-600 shadow-sm'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                      }`}
-                    >
-                      <Icon size={18} />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex">
-        {/* Desktop Sidebar - Fixed Position */}
-        <div className="hidden lg:block w-80 bg-gray-50 border-r border-gray-200 min-h-screen fixed left-0 top-0 overflow-y-auto z-30 shadow-sm">
-          <div className="p-6">
-            {/* Profile Image */}
-            <div className="text-center mb-6">
-              <div className="w-48 h-60 mx-auto rounded-lg overflow-hidden shadow-lg mb-4 transition-transform duration-300 hover:scale-105 ring-4 ring-white">
-                <img 
-                  src="IMG_5438.jpg" 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Jakapun Tachaiya</h1>
-              <p className="text-gray-600 text-sm">Natural Language Processing Researcher</p>
-            </div>
-
-            {/* Contact Info */}
-            <div className="space-y-3 mb-8 text-sm">
-              <div className="flex items-center gap-3 text-gray-700 hover:text-gray-900 transition-colors">
-                <Home size={16} className="text-gray-500" />
-                <span>Linguistic Department, Chulalongkorn University</span>
-              </div>
-              <div className="flex items-center gap-3 text-gray-700 hover:text-gray-900 transition-colors">
-                <MapPin size={16} className="text-gray-500" />
-                <span>Bangkok, Thailand</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Mail size={16} className="text-gray-500" />
-                <a href="mailto:your.email@university.edu" className="text-blue-600 hover:text-blue-800 transition-colors">
-                 jakapun.t@chula.ac.th
-                </a>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="space-y-1">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-all duration-200 ${
-                      activeTab === tab.id
-                        ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-600 shadow-sm transform translate-x-1'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:translate-x-1'
-                    }`}
-                  >
-                    <Icon size={18} />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-
-        {/* Main Content - Properly offset for sidebar */}
-        <div className="flex-1 lg:ml-80 min-h-screen">
-          <div className="max-w-4xl mx-auto">
-            {renderContent()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+export default function App() {
+  const [open,setOpen]=useState(false);
+  useEffect(()=>{const close=()=>setOpen(false); window.addEventListener('resize',close); return()=>window.removeEventListener('resize',close)},[]);
+  const selectedCourse=findCourse(new URLSearchParams(window.location.search).get('course'));
+  if(selectedCourse) return <CoursePage course={selectedCourse}/>;
+  return <div className="shell">
+    <header><div className="header-inner"><a className="wordmark" href="#top">Jakapun Tachaiya</a><button className="menu" aria-label="Toggle navigation" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X/>:<Menu/>}</button><nav className={open?'open':''}>
+      <a href="#research" onClick={()=>setOpen(false)}>Research</a>
+      <a href="#publications" onClick={()=>setOpen(false)}>Papers</a>
+      <details className="nav-dropdown"><summary>Things I Teach <span aria-hidden="true">▾</span></summary><div className="dropdown-menu course-menu">
+        <a href="?course=basic-programming-nlp"><strong>Basic Programming for NLP</strong><small>Python · text processing foundations</small></a>
+        <a href="?course=natural-language-processing"><strong>Natural Language Processing</strong><small>representation · models · applications</small></a>
+        <a href="?course=large-language-models"><strong>Large Language Models</strong><small>training · alignment · RAG &amp; agents</small></a>
+        <a href="?course=statistics-digital-humanities"><strong>Statistics for Digital Humanities</strong><small>evidence · inference · modeling</small></a>
+        <a className="dropdown-all" href="#teaching" onClick={()=>setOpen(false)}>All teaching →</a>
+      </div></details>
+      <details className="nav-dropdown"><summary>Interactive Lessons <span aria-hidden="true">▾</span></summary><div className="dropdown-menu lesson-menu">
+        <a href="template/Lab-Tokenizer.dc.html"><strong>Tokenisation playground</strong><small>dashboard · type your own text</small></a>
+        <a href="template/Lab-Keywords.dc.html"><strong>Keyword expansion demo</strong><small>dashboard · seed → domain lexicon</small></a>
+        <a href="template/Lab%20-%20SynthID.html"><strong>SynthID</strong><small>word choice · hypothesis testing</small></a>
+        <a href="template/Lab%20-%20Neural%20Network%20Explainer.html"><strong>Neural network explainer</strong><small>forward pass · backpropagation</small></a>
+      </div></details>
+      <a href="#cv" onClick={()=>setOpen(false)}>CV</a><a href="mailto:jakapun.t@chula.ac.th">Contact</a>
+    </nav></div></header>
+    <main>
+      <section className="hero" id="top"><div><p className="eyebrow">Lecturer · Department of Linguistics · Chulalongkorn University</p><h1>Teaching computers to understand what we say.</h1><p className="lead">I’m Jakapun Tachaiya, a natural language processing researcher working on Large Language Models and Thai language technology.</p><p className="note">My work spans language understanding, social trend and behaviour analysis, and practical systems that help people work with text at scale.</p><div className="buttons"><a className="button primary" href="mailto:jakapun.t@chula.ac.th">Email</a><a className="button" href="https://orcid.org/0000-0001-9779-1571" target="_blank" rel="noreferrer">ORCID <ArrowUpRight/></a><a className="button" href="https://github.com/JakapunTachaiya" target="_blank" rel="noreferrer">GitHub <ArrowUpRight/></a><a className="button" href="Jakapun CV.pdf" download>CV <Download/></a></div></div><figure><img src="IMG_5438.jpg" alt="Jakapun Tachaiya"/><figcaption>Bangkok, Thailand<br/>jakapun.t@chula.ac.th</figcaption></figure></section>
+      <section className="split" id="about"><Label n="01">About</Label><div className="content prose"><p className="large">I am a faculty member in the Linguistics Department at the Faculty of Arts, Chulalongkorn University. I’m fascinated by how computers are taught to understand language—a difficult problem because even people misunderstand one another while using the same words.</p><p>This interest drives my research in Natural Language Processing: technology that helps computers answer questions, translate, and analyse text at scale. My current work focuses on NLP with Large Language Models, particularly for Thai. Please get in touch if you are interested in collaborating.</p><div className="mini-grid"><div><b>Research</b><h3>NLP research</h3><p>Advancing language understanding and generation through new architectures and methods.</p></div><div><b>Community</b><h3>Collaboration</h3><p>Working with research institutions and industry partners in Thailand and abroad.</p></div><div><b>Application</b><h3>Real-world impact</h3><p>Turning language research into systems that support people and organisations.</p></div></div></div></section>
+      <section className="split" id="research"><Label n="02">Research</Label><div className="content"><div className="topic-grid">{research.map(([t,p])=><article key={t}><h3>{t}</h3><p>{p}</p></article>)}</div><p className="footnote">Core methods include machine learning and sentiment analysis. Applications include conversational AI, information extraction, text summarisation, multilingual NLP, educational technology, and healthcare NLP.</p></div></section>
+      <section className="split" id="lab"><Label n="03">Research Lab</Label><div className="content"><h3 className="display">NLP Research Lab <em>@Chula</em></h3><p className="large">The lab advances Thai NLP infrastructure, including automated linguistic analysis and Large Language Models designed specifically for Thai.</p><div className="admissions"><div><b>Master’s programme</b><p>Prospective students are encouraged to consider the Linguistics programme’s “แผน วิชาชีพ” for flexible training from programming fundamentals to neural language models. See the <a href="https://www.arts.chula.ac.th/ling/index.html" target="_blank" rel="noreferrer">sample study plan</a>.</p></div><div><b>Ph.D. programme</b><p>A strong background in programming and machine learning is generally expected. Potential students are also welcome to discuss projects directly by email.</p></div></div><div className="people"><h3>Principal investigator</h3><p className="person-name">Jakapun Tachaiya</p></div><div className="people"><h3>Current members</h3>{current.map(([n,m])=><div className="person" key={n}><strong>{n}</strong><span>{m}</span></div>)}</div><div className="people"><h3>Alumni</h3>{alumni.map(([n,m,p])=><div className="alum" key={n}><div><strong>{n}</strong><span>{m}</span></div><p>{p}</p></div>)}</div></div></section>
+      <section className="split" id="publications"><div><Label n="04">Publications</Label><a className="side-link" href="https://orcid.org/0000-0001-9779-1571" target="_blank" rel="noreferrer">ORCID<br/>0000-0001-9779-1571</a></div><div className="content pubs">{publications.map(([y,t,a,v,d])=><article className="pub" key={d}><span className="year">{y}</span><div><h3><a href={d} target="_blank" rel="noreferrer">{t} <ArrowUpRight/></a></h3><p className="authors">{a}</p><p>{v}</p><span className="status">Conference paper · Published</span></div></article>)}</div></section>
+      <section className="split" id="teaching"><Label n="05">Teaching & Talks</Label><div className="content"><p className="large">Contributions to education and knowledge sharing through university teaching and professional workshops.</p><h3 className="list-heading">Teaching experience</h3><Timeline items={teaching}/><h3 className="list-heading spaced">Talks & workshops</h3><Timeline items={talks}/></div></section>
+      <section className="split" id="cv"><div><Label n="06">Curriculum Vitae</Label><a className="side-link" href="Jakapun CV.pdf" download>Download PDF ↓</a></div><div className="content"><h3 className="list-heading">Education</h3><Timeline items={education}/><h3 className="list-heading spaced">Work history</h3><Timeline items={experience}/></div></section>
+    </main>
+    <footer id="contact"><div className="footer-inner"><div><p className="footer-kicker">Let’s work together</p><h2>Open to collaborations and student projects.</h2><a className="footer-email" href="mailto:jakapun.t@chula.ac.th">jakapun.t@chula.ac.th</a></div><div><p className="footer-kicker">Elsewhere</p><a href="https://orcid.org/0000-0001-9779-1571" target="_blank" rel="noreferrer">ORCID</a><a href="https://github.com/JakapunTachaiya" target="_blank" rel="noreferrer">GitHub</a></div><div><p className="footer-kicker">Office</p><p>Department of Linguistics<br/>Faculty of Arts<br/>Chulalongkorn University<br/>Bangkok, Thailand</p></div></div></footer>
+  </div>;
 }
-
-export default App;
