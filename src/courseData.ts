@@ -26,7 +26,6 @@ export const courses: Course[] = [
       { title: 'Working with Language and Data', items: ['Processing textual and numerical data', 'Representing linguistic information', 'Preparing raw text for computational analysis'] },
       { title: 'Text Preprocessing', items: ['Tokenization', 'Normalization', 'Stemming and lemmatization', 'Noise removal and downstream preparation'] },
       { title: 'Programming for NLP', items: ['Python as a foundation for NLP', 'NLP-oriented libraries and tools', 'Obtaining data from online sources', 'Applying fundamental NLP techniques to real text'] },
-      { title: 'Introduction to NLP Model Development', items: ['From processed text to computational models', 'Conceptual introduction to embeddings', 'Neural models, RNNs, and Transformers'] },
     ],
   },
   {
