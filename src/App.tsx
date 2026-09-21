@@ -52,6 +52,12 @@ const CoursePage = ({course}:{course:Course}) => {
 export default function App() {
   const [open,setOpen]=useState(false);
   useEffect(()=>{const close=()=>setOpen(false); window.addEventListener('resize',close); return()=>window.removeEventListener('resize',close)},[]);
+  useEffect(()=>{
+    const closeOthers=(e:Event)=>{const t=e.target as HTMLElement; if(!(t instanceof HTMLDetailsElement)||!t.open||!t.classList.contains('nav-dropdown')) return; document.querySelectorAll<HTMLDetailsElement>('details.nav-dropdown[open]').forEach(d=>{if(d!==t) d.open=false;});};
+    const outside=(e:MouseEvent)=>{const t=e.target as HTMLElement; document.querySelectorAll<HTMLDetailsElement>('details.nav-dropdown[open]').forEach(d=>{if(!d.contains(t)||t.closest('.dropdown-menu a')) d.open=false;});};
+    document.addEventListener('toggle',closeOthers,true); document.addEventListener('click',outside);
+    return()=>{document.removeEventListener('toggle',closeOthers,true); document.removeEventListener('click',outside)};
+  },[]);
   const selectedCourse=findCourse(new URLSearchParams(window.location.search).get('course'));
   if(selectedCourse) return <CoursePage course={selectedCourse}/>;
   return <div className="shell">
@@ -70,6 +76,9 @@ export default function App() {
         <a href="dashboard/Lab-Keywords.dc.html"><strong>Keyword expansion demo</strong><small>dashboard · seed → domain lexicon</small></a>
         <a href="dashboard/Lab%20-%20SynthID.html"><strong>SynthID</strong><small>word choice · hypothesis testing</small></a>
         <a href="dashboard/Lab%20-%20Neural%20Network%20Explainer.html"><strong>Neural network explainer</strong><small>forward pass · backpropagation</small></a>
+      </div></details>
+      <details className="nav-dropdown"><summary>Recent Work <span aria-hidden="true">▾</span></summary><div className="dropdown-menu lesson-menu">
+        <a href="https://perfume-soundsymbol.vercel.app/" target="_blank" rel="noreferrer"><strong>Fragrance sound symbolism</strong><small>perfume names · sound symbolism</small></a>
       </div></details>
       <a href="#cv" onClick={()=>setOpen(false)}>CV</a><a href="mailto:jakapun.t@chula.ac.th">Contact</a>
     </nav></div></header>
