@@ -25,6 +25,7 @@ const block = (s) => md.render(String(s ?? ''));
 
 export const UI = {
   inLesson: ['ในบทเรียนนี้', 'In this lesson'],
+  classMaterials: ['เอกสารประกอบการเรียน', 'Class materials'],
   concept: ['แนวคิด', 'Concept'],
   example: ['ตัวอย่าง', 'Example'],
   code: ['โค้ด', 'Code'],

@@ -19,9 +19,13 @@ const LANG_INIT = `(function(){var l='th';try{var s=localStorage.getItem('course
 const jsonForScript = (obj) =>
   JSON.stringify(obj).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
+// Course pages live at /courses/<course>/ on jakapunt.github.io, so the main site is two levels up.
+const SITE = '../../';
+
 export function pageHtml({ course, meta, weekPad, sectionsHtml, toc, sectionCount, weekNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null }) {
   // dev preview only: where the in-page editor saves to
   const editable = dev && srcFile;
+  const isHome = !meta.week;
   const fontsUrl = '../_fonts/';
   const week = Number(meta.week);
   const title = `W${weekPad} · ${meta.title} · ${course.title}`;
@@ -61,7 +65,11 @@ ${editable ? read('templates/dev-edit.css') : ''}
 <a class="skip" href="#main">${T(['ข้ามไปที่เนื้อหา', 'Skip to content'])}</a>
 <header class="topbar">
 <div class="wrap topbar-inner">
-<a class="brand" href="index.html"><span class="brand-course" lang="en">${esc(course.title)}</span><span class="brand-teacher" lang="en">${esc(course.teacher ?? '')}</span></a>
+<nav class="crumbs" aria-label="เส้นทาง / Breadcrumb">
+<a class="crumb crumb-site" href="${SITE}" lang="en">${esc(course.teacher ?? 'Home')}</a><span class="crumb-sep" aria-hidden="true">›</span>
+<a class="crumb" href="${SITE}?materials">${T(UI.classMaterials)}</a><span class="crumb-sep" aria-hidden="true">›</span>
+<a class="crumb crumb-course" href="index.html" lang="en"${isHome ? ' aria-current="page"' : ''}>${esc(course.title)}</a>
+</nav>
 <div class="top-actions">
 <div class="lang-switch" role="group" aria-label="ภาษา / Language">
 <button type="button" data-set-lang="th" aria-pressed="true">ไทย</button><button type="button" data-set-lang="en" lang="en" aria-pressed="false">EN</button>
