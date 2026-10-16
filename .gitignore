@@ -1,0 +1,10 @@
+# Course pages: lecture sources and the password must never reach the public repo
+course/courses/
+course/.env
+course/.preview/
+course/node_modules/
+# design references contain full lecture text in plain HTML
+course/reference/
+
+# macOS
+.DS_Store
