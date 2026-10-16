@@ -102,6 +102,9 @@ function renderToc(sections) {
 }
 
 const sid = (id) => id.toUpperCase();
+// section ID plus a small button that opens focus mode at this section
+const sidBox = (id) =>
+  `<span class="sid-box"><span class="sid">${sid(id)}</span><button type="button" class="fx-jump" data-fx-open="${id}" aria-label="โหมดโฟกัสที่ ${sid(id)} / Focus mode at ${sid(id)}" title="Focus (F)">${icon('focus', 14)}</button></span>`;
 
 function renderSection(s, index, ctx) {
   ctx.section = s;
@@ -109,13 +112,13 @@ function renderSection(s, index, ctx) {
   const rest = s.blocks.filter((b) => b !== summary);
   const exercise = rest.length === 1 && rest[0].type === 'container' && rest[0].name === 'exercise' ? rest[0] : null;
 
-  const heading = `<h2 id="${s.id}-title" lang="en">${inline(s.title)}</h2>${
-    s.attrs.th ? `<p class="h-sub" data-only="th">${inline(s.attrs.th)}</p>` : ''
+  const heading = `<h2 id="${s.id}-title" lang="en"${srcAttr(ctx, s.line)}>${inline(s.title)}</h2>${
+    s.attrs.th ? `<p class="h-sub" data-only="th"${srcAttr(ctx, s.line)}>${inline(s.attrs.th)}</p>` : ''
   }`;
 
   if (exercise) {
     return `<article class="section card section-exercise" id="${s.id}" aria-labelledby="${s.id}-title">
-<div class="strip strip-exercise">${exerciseLabel(exercise)}<span class="sid">${sid(s.id)}</span></div>
+<div class="strip strip-exercise"${srcAttr(ctx, exercise.line, exercise.end)}>${exerciseLabel(exercise)}${sidBox(s.id)}</div>
 <div class="section-body">
 <div class="section-head">${heading}</div>
 ${renderExerciseBody(exercise, ctx)}
@@ -124,11 +127,11 @@ ${renderExerciseBody(exercise, ctx)}
   }
 
   const strip = summary
-    ? `<div class="strip"><p class="summary-text">${renderSummary(summary)}</p><span class="sid">${sid(s.id)}</span></div>`
+    ? `<div class="strip"${srcAttr(ctx, summary.line, summary.end)}><p class="summary-text">${renderSummary(summary)}</p>${sidBox(s.id)}</div>`
     : '';
   const head = summary
     ? `<div class="section-head">${heading}</div>`
-    : `<div class="section-head section-head-row"><div>${heading}</div><span class="sid">${sid(s.id)}</span></div>`;
+    : `<div class="section-head section-head-row"><div>${heading}</div>${sidBox(s.id)}</div>`;
   return `<article class="section card" id="${s.id}" aria-labelledby="${s.id}-title">
 ${strip}
 <div class="section-body">
@@ -159,17 +162,23 @@ export function setFile(f) {
 
 const CODE_LANGS_SPECIAL = new Set(['output', 'dataframe', 'prompt', 'figure', 'plot', 'error', 'formula', 'read-result']);
 
+// Dev preview only: tag a block with its source lines so the in-page editor can find them.
+// display:contents keeps the wrapper out of the layout.
+export const srcAttr = (ctx, line, end) => (ctx?.dev && line ? ` data-src="${line}-${end ?? line}"` : '');
+const srcWrap = (ctx, node, html, end) =>
+  ctx?.dev && node?.line ? `<div class="src-node" data-src="${node.line}-${end ?? node.end ?? node.line}">${html}</div>` : html;
+
 export function renderBlocks(nodes, ctx) {
   const out = [];
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
-    if (n.type === 'md') out.push(block(n.text));
-    else if (n.type === 'table') out.push(renderTable(n));
-    else if (n.type === 'deflist') out.push(renderDeflist(n, ctx));
+    if (n.type === 'md') out.push(srcWrap(ctx, n, block(n.text)));
+    else if (n.type === 'table') out.push(srcWrap(ctx, n, renderTable(n)));
+    else if (n.type === 'deflist') out.push(srcWrap(ctx, n, renderDeflist(n, ctx)));
     else if (n.type === 'fence') {
       if (n.lang === 'output') throw new LectureError(ctxFile(), n.line, '```output must come right after a code block');
       if (CODE_LANGS_SPECIAL.has(n.lang)) {
-        out.push(renderLaterBlock(n.lang));
+        out.push(srcWrap(ctx, n, renderLaterBlock(n.lang)));
         continue;
       }
       // a code cell may be followed by its ```output and ::: step-outputs
@@ -177,8 +186,8 @@ export function renderBlocks(nodes, ctx) {
       let stepOutputs = null;
       if (nodes[i + 1]?.type === 'fence' && nodes[i + 1].lang === 'output') output = nodes[++i];
       if (nodes[i + 1]?.type === 'container' && nodes[i + 1].name === 'step-outputs') stepOutputs = nodes[++i];
-      out.push(renderCode(n, output, stepOutputs, ctx));
-    } else if (n.type === 'container') out.push(renderContainer(n, ctx));
+      out.push(srcWrap(ctx, n, renderCode(n, output, stepOutputs, ctx), (stepOutputs ?? output ?? n).end));
+    } else if (n.type === 'container') out.push(['th', 'en'].includes(n.name) ? renderContainer(n, ctx) : srcWrap(ctx, n, renderContainer(n, ctx)));
   }
   return out.join('\n');
 }
@@ -240,7 +249,7 @@ let answerSeq = 0;
 function renderExerciseBody(n, ctx) {
   const answers = n.children.filter((c) => c.type === 'container' && c.name === 'answer');
   const others = n.children.filter((c) => !answers.includes(c));
-  return `<div class="exercise-body">${renderBlocks(others, ctx)}${answers.map((a) => renderAnswer(a, ctx)).join('')}</div>`;
+  return `<div class="exercise-body">${renderBlocks(others, ctx)}${answers.map((a) => srcWrap(ctx, a, renderAnswer(a, ctx))).join('')}</div>`;
 }
 
 function renderAnswer(n, ctx) {

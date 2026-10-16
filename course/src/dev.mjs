@@ -1,15 +1,27 @@
 // npm run dev: build into .preview/, serve it on localhost, rebuild and reload on save.
 // Each rebuild runs in a fresh process so edits to src/ are picked up too.
+//
+// The preview can also edit the lecture Markdown (templates/dev-edit.js):
+//   GET  /__source  → the raw lines of one block
+//   POST /__save    → replace those lines, after checking the file still parses
+//   POST /__open    → open the file at a line in VS Code
+// These exist only here, on 127.0.0.1, and only touch .md files under course/courses/.
+// Published pages have no editor and no server to talk to.
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { COURSE_DIR } from './page.mjs';
+import { parseLecture } from './parse.mjs';
 
 const PORT = Number(process.env.PORT ?? 5180);
 const PREVIEW = path.join(COURSE_DIR, '.preview');
+const SOURCES = path.join(COURSE_DIR, 'courses');
+const HISTORY = path.join(PREVIEW, '.history');
 const clients = new Set();
+
+const broadcast = (msg) => { for (const res of clients) res.write(`data: ${msg}\n\n`); };
 
 let building = false;
 let again = false;
@@ -25,17 +37,134 @@ function rebuild() {
   child.stderr.on('data', (d) => { err += d; process.stderr.write(d); });
   child.on('close', (code) => {
     building = false;
-    if (code === 0) for (const res of clients) res.write('data: reload\n\n');
-    else for (const res of clients) res.write(`data: error\n\n`);
+    if (code === 0) broadcast('reload');
+    else broadcast(`error ${JSON.stringify(err.trim().split('\n')[0] || 'build failed')}`);
     if (again) { again = false; rebuild(); }
   });
 }
+
+// ---------------------------------------------------------------- editing
+
+class EditError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+// Only lecture Markdown under course/courses/ may be read or written.
+function sourcePath(rel) {
+  const abs = path.resolve(COURSE_DIR, String(rel ?? ''));
+  if (!abs.startsWith(SOURCES + path.sep) || !abs.endsWith('.md') || !fs.existsSync(abs)) {
+    throw new EditError(400, 'not a lecture file');
+  }
+  return abs;
+}
+
+function lineRange(body) {
+  const start = Number(body.start);
+  const end = Number(body.end);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) throw new EditError(400, 'bad line range');
+  return [start, end];
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (c) => { data += c; if (data.length > 2e6) reject(new EditError(413, 'too large')); });
+    req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch { reject(new EditError(400, 'bad JSON')); } });
+  });
+}
+
+// A page on another site could try to POST to localhost. Browsers only send the custom
+// header after a CORS preflight, which this server never approves, so requiring it plus a
+// localhost Origin blocks that.
+function checkCaller(req) {
+  const origin = req.headers.origin;
+  const okOrigin = !origin || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+  if (req.headers['x-course-dev'] !== '1' || !okOrigin) throw new EditError(403, 'forbidden');
+}
+
+function backup(abs, text) {
+  fs.mkdirSync(HISTORY, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const name = `${path.relative(SOURCES, abs).replace(/[\\/]/g, '__')}.${stamp}.md`;
+  fs.writeFileSync(path.join(HISTORY, name), text);
+  // keep the newest 200 versions
+  const all = fs.readdirSync(HISTORY).sort();
+  for (const old of all.slice(0, Math.max(0, all.length - 200))) fs.rmSync(path.join(HISTORY, old));
+  return name;
+}
+
+async function handleEdit(req, res, url) {
+  const send = (status, obj) => {
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(obj));
+  };
+  try {
+    if (url.pathname === '/__source' && req.method === 'GET') {
+      checkCaller(req);
+      const abs = sourcePath(url.searchParams.get('file'));
+      const [start, end] = lineRange({ start: url.searchParams.get('start'), end: url.searchParams.get('end') });
+      const lines = fs.readFileSync(abs, 'utf8').split('\n');
+      if (end > lines.length) throw new EditError(409, 'the file changed; reload the page');
+      return send(200, { text: lines.slice(start - 1, end).join('\n') });
+    }
+
+    if (url.pathname === '/__save' && req.method === 'POST') {
+      checkCaller(req);
+      const body = await readBody(req);
+      const abs = sourcePath(body.file);
+      const [start, end] = lineRange(body);
+      const before = fs.readFileSync(abs, 'utf8');
+      const lines = before.split('\n');
+      if (lines.slice(start - 1, end).join('\n') !== body.original) {
+        throw new EditError(409, 'These lines changed since you opened them (edited somewhere else?). Reload the page and try again.');
+      }
+      const text = String(body.text ?? '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+      const after = [...lines.slice(0, start - 1), ...(text === '' ? [] : text.split('\n')), ...lines.slice(end)].join('\n');
+      if (after === before) return send(200, { ok: true, unchanged: true });
+
+      // refuse anything that would break the build or drop a section ID
+      const rel = path.relative(COURSE_DIR, abs);
+      let parsed;
+      try {
+        parsed = parseLecture(after, rel);
+      } catch (e) {
+        throw new EditError(422, `Not saved: ${e.message}`);
+      }
+      const oldIds = parseLecture(before, rel).sections.map((s) => s.id);
+      const newIds = new Set(parsed.sections.map((s) => s.id));
+      const lost = oldIds.filter((id) => !newIds.has(id));
+      if (lost.length) throw new EditError(422, `Not saved: section ${lost.map((x) => x.toUpperCase()).join(', ')} would disappear. Remove sections in VS Code if you mean it.`);
+
+      const saved = backup(abs, before);
+      const tmp = `${abs}.saving`;
+      fs.writeFileSync(tmp, after);
+      fs.renameSync(tmp, abs);
+      console.log(`edited ${rel} lines ${start}-${end} (previous version: .preview/.history/${saved})`);
+      return send(200, { ok: true });
+    }
+
+    if (url.pathname === '/__open' && req.method === 'POST') {
+      checkCaller(req);
+      const body = await readBody(req);
+      const abs = sourcePath(body.file);
+      const line = Math.max(1, Number(body.line) || 1);
+      spawn('open', [`vscode://file${encodeURI(abs)}:${line}`], { stdio: 'ignore', detached: true }).unref();
+      return send(200, { ok: true });
+    }
+    return send(404, { error: 'not found' });
+  } catch (e) {
+    return send(e.status ?? 500, { error: e.message });
+  }
+}
+
+// ---------------------------------------------------------------- server
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
 http
   .createServer((req, res) => {
-    const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    const parsedUrl = new URL(req.url, 'http://x');
+    const url = decodeURIComponent(parsedUrl.pathname);
     if (url === '/__reload') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       res.write(': connected\n\n');
@@ -43,8 +172,12 @@ http
       req.on('close', () => clients.delete(res));
       return;
     }
+    if (url === '/__source' || url === '/__save' || url === '/__open') {
+      handleEdit(req, res, parsedUrl);
+      return;
+    }
     let file = path.join(PREVIEW, url);
-    if (!file.startsWith(PREVIEW)) { res.writeHead(403).end(); return; }
+    if (!file.startsWith(PREVIEW) || url.includes('/.history')) { res.writeHead(403).end(); return; }
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
     if (url === '/') {
       const courses = fs.existsSync(PREVIEW) ? fs.readdirSync(PREVIEW).filter((d) => !d.startsWith('_') && !d.startsWith('.')) : [];
@@ -59,14 +192,15 @@ http
     });
   })
   .listen(PORT, '127.0.0.1', () => {
-    console.log(`Preview: http://localhost:${PORT}/`);
+    console.log(`Preview: http://localhost:${PORT}/   (✎ Edit and ⌥-click to open in VS Code are on)`);
   });
 
 let timer;
 for (const p of ['courses', 'templates', 'src', 'tokens.css']) {
   const full = path.join(COURSE_DIR, p);
   if (!fs.existsSync(full)) continue;
-  fs.watch(full, { recursive: true }, () => {
+  fs.watch(full, { recursive: true }, (event, name) => {
+    if (name && name.endsWith('.saving')) return;
     clearTimeout(timer);
     timer = setTimeout(rebuild, 120);
   });

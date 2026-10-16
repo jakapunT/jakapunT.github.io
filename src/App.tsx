@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Download, Menu, X } from 'lucide-react';
-import { findCourse, type Course } from './courseData';
+import { ArrowUpRight, Download, Lock, Menu, X } from 'lucide-react';
+import { courses, findCourse, type Course } from './courseData';
 
 const research = [
   ['Large Language Models', 'Building and adapting language models, with a particular focus on Thai.'],
@@ -41,11 +41,28 @@ const CoursePage = ({course}:{course:Course}) => {
   return <div className="course-page">
     <header><div className="header-inner"><a className="wordmark" href="./">Jakapun Tachaiya</a><nav className="course-nav"><a href="./#teaching">← All teaching</a><a href="mailto:jakapun.t@chula.ac.th">Contact</a></nav></div></header>
     <main>
-      <section className="course-hero"><p className="eyebrow">Course · Department of Linguistics · Chulalongkorn University</p><h1>{course.title}</h1><p className="lead">{course.shortDescription}</p></section>
+      <section className="course-hero"><p className="eyebrow">Course · Department of Linguistics · Chulalongkorn University</p><h1>{course.title}</h1><p className="lead">{course.shortDescription}</p>{course.materials&&<div className="buttons"><a className="button primary" href={course.materials.href}><Lock/>Class materials</a><a className="button" href="?materials">All class materials</a></div>}</section>
       <section className="course-layout"><aside><span>Course overview</span></aside><div className="course-description">{course.description.map((paragraph)=><p key={paragraph}>{paragraph}</p>)}</div></section>
       <section className="course-layout topics-section"><aside><span>Learning path</span></aside><div><p className="progression">{course.progression}</p><h2>Major topics</h2><div className="course-topics">{course.topics.map((topic)=><article key={topic.title}><h3>{topic.title}</h3><ul>{topic.items.map((item)=><li key={item}>{item}</li>)}</ul></article>)}</div></div></section>
     </main>
     <footer><div className="course-footer"><div><p className="footer-kicker">Questions about this course?</p><a className="footer-email" href="mailto:jakapun.t@chula.ac.th">jakapun.t@chula.ac.th</a></div><a href="./#teaching">Return to all teaching →</a></div></footer>
+  </div>;
+};
+
+const MaterialsPage = () => {
+  useEffect(()=>{document.title='Class materials — Jakapun Tachaiya'; return()=>{document.title='Jakapun Tachaiya — NLP Researcher'}},[]);
+  return <div className="course-page materials-page">
+    <header><div className="header-inner"><a className="wordmark" href="./">Jakapun Tachaiya</a><nav className="course-nav"><a href="./#teaching">← All teaching</a><a href="mailto:jakapun.t@chula.ac.th">Contact</a></nav></div></header>
+    <main>
+      <section className="course-hero"><p className="eyebrow">Class materials · For enrolled students</p><h1>Class materials</h1><p className="lead">Lecture pages for each class I teach. Every class has its own password, given out in class.</p><p className="lead-th" lang="th">เอกสารประกอบการเรียนสำหรับนิสิตที่ลงทะเบียน ใช้รหัสผ่านที่อาจารย์แจ้งในชั้นเรียน</p></section>
+      <section className="course-layout"><aside><span>Classes</span></aside><div className="materials-list">{courses.map((course)=>{const m=course.materials; return <article key={course.slug} className={m?'':'unavailable'}>
+        <p className="materials-meta">{m?`${m.term} · Taught in ${m.language}`:'Coming later'}</p>
+        <div className="materials-row"><div><h2>{course.title}</h2><p>{course.shortDescription}</p><a className="materials-about" href={`?course=${course.slug}`}>About this course →</a></div>
+        {m?<div className="materials-action"><a className="button primary" href={m.href}><Lock/>Enter</a><span>Password required</span></div>:<div className="materials-action"><span>Not yet available</span></div>}</div>
+      </article>})}</div></section>
+      <section className="course-layout"><aside><span>Password help</span></aside><div className="materials-help"><p>Ask for the password in class, or email <a href="mailto:jakapun.t@chula.ac.th">jakapun.t@chula.ac.th</a> from your university account. After you enter it once, each device remembers it for 30 days.</p><p lang="th">ถ้าไม่มีรหัสผ่าน ให้ถามในชั้นเรียน หรืออีเมลถึงอาจารย์จากอีเมลมหาวิทยาลัย เมื่อใส่รหัสผ่านครั้งแรกแล้ว เครื่องนั้นจะจำไว้ 30 วัน</p></div></section>
+    </main>
+    <footer><div className="course-footer"><div><p className="footer-kicker">Questions about a class?</p><a className="footer-email" href="mailto:jakapun.t@chula.ac.th">jakapun.t@chula.ac.th</a></div><a href="./#teaching">Return to all teaching →</a></div></footer>
   </div>;
 };
 
@@ -58,7 +75,9 @@ export default function App() {
     document.addEventListener('toggle',closeOthers,true); document.addEventListener('click',outside);
     return()=>{document.removeEventListener('toggle',closeOthers,true); document.removeEventListener('click',outside)};
   },[]);
-  const selectedCourse=findCourse(new URLSearchParams(window.location.search).get('course'));
+  const params=new URLSearchParams(window.location.search);
+  if(params.has('materials')) return <MaterialsPage/>;
+  const selectedCourse=findCourse(params.get('course'));
   if(selectedCourse) return <CoursePage course={selectedCourse}/>;
   return <div className="shell">
     <header><div className="header-inner"><a className="wordmark" href="#top">Jakapun Tachaiya</a><button className="menu" aria-label="Toggle navigation" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X/>:<Menu/>}</button><nav className={open?'open':''}>
@@ -71,6 +90,7 @@ export default function App() {
         <a href="?course=statistics-digital-humanities"><strong>Statistics for Digital Humanities</strong><small>evidence · inference · modeling</small></a>
         <a className="dropdown-all" href="#teaching" onClick={()=>setOpen(false)}>All teaching →</a>
       </div></details>
+      <a href="?materials" className="nav-materials"><Lock aria-hidden="true"/>Class Materials</a>
       <details className="nav-dropdown"><summary>Interactive Lessons <span aria-hidden="true">▾</span></summary><div className="dropdown-menu lesson-menu">
         <a href="dashboard/Lab-Tokenizer.dc.html"><strong>Tokenization playground</strong><small>dashboard · type your own text</small></a>
         <a href="dashboard/Lab-Keywords.dc.html"><strong>Keyword expansion demo</strong><small>dashboard · seed → domain lexicon</small></a>

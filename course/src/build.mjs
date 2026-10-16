@@ -73,6 +73,7 @@ export async function buildCourse(slug, { dev = false } = {}) {
       env: meta.env ?? course.env ?? 'colab',
       install: meta.install ?? course.install ?? null,
       installShown: false,
+      dev,
       cellCount: 0,
       weekPad,
       addFile(f) {
@@ -108,6 +109,8 @@ export async function buildCourse(slug, { dev = false } = {}) {
       files,
       dev,
       focusDeck,
+      srcFile: lec.rel,
+      frontMatter: lec.frontMatter,
     });
     pages.push({ name: `${lec.slug}.html`, html, lecture: lec });
   }
