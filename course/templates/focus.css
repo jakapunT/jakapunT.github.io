@@ -245,3 +245,27 @@ ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var
 .fx .pc-vis-venn { padding: calc(6 * var(--k)); }
 .fx .pc-vis-venn .pc-col th, .fx .pc-vis-venn .pc-col td { font-size: calc(11 * var(--k)); padding: calc(3 * var(--k)) calc(5 * var(--k)); height: auto; }
 .fx .venn { width: calc(120 * var(--k)); }
+
+/* ---------- PDF as slides (page.js adds html.print-slides, fits each slide, then prints) ----------
+   Every frame becomes one 1280×720 page: all steps shown (a morph or side stack shows its last
+   step), code lines undimmed, exercise answers left out so students still work them out.
+   The layout also applies on screen while the class is on, so page.js can measure each slide
+   and shrink one that is too tall before the print window opens. */
+.fx-print-id { display: none; }
+@media print {
+  @page slide { size: 1280px 720px; margin: 0; }
+  html.print-slides .fx-frame { page: slide; break-after: page; }
+}
+html.print-slides body > :not(#focus) { display: none !important; }
+html.print-slides #focus { position: static; display: block !important; padding: 0; overflow: visible; --u: 1px; }
+html.print-slides .fx-top, html.print-slides .fx-bottom { display: none !important; }
+html.print-slides .fx-frames { display: block; }
+html.print-slides .fx-frame {
+  display: flex !important; position: relative;
+  width: 1280px; height: 720px; box-sizing: border-box; padding: 64px 72px 28px; overflow: hidden;
+}
+html.print-slides .fx-print-id { display: block; position: absolute; top: 28px; left: 72px; margin: 0; font: 15px var(--font-code); letter-spacing: .06em; color: var(--muted); }
+html.print-slides .fx-step { visibility: visible !important; opacity: 1 !important; animation: none !important; }
+html.print-slides .fx-morph .fx-step:not(:last-child), html.print-slides .fx-side .fx-step:not(:last-child) { visibility: hidden !important; }
+html.print-slides .fx-frame[data-answer] .fx-step:not([data-step="0"]) { display: none !important; }
+html.print-slides .fx-code .ln { opacity: 1 !important; background: none !important; }

@@ -121,6 +121,11 @@
       window.print();
       return;
     }
+    // PDF as slides: print the focus-mode frames, one 16:9 page each (focus.css, @media print)
+    if (e.target.closest('[data-print-slides]')) {
+      printSlides();
+      return;
+    }
     // download
     var dl = e.target.closest('[data-download]');
     if (dl) {
@@ -128,6 +133,48 @@
       if (file) download(file);
     }
   });
+
+  function printSlides() {
+    var deck = document.getElementById('focus');
+    if (!deck) return;
+    // each printed slide gets its own "L10-S02 · Title" line (on screen the deck's top bar does this)
+    var frames = deck.querySelectorAll('.fx-frame');
+    for (var i = 0; i < frames.length; i++) {
+      if (frames[i].querySelector('.fx-print-id')) continue;
+      var label = document.createElement('p');
+      label.className = 'fx-print-id';
+      label.textContent = frames[i].getAttribute('data-section').toUpperCase() + ' · ' + frames[i].getAttribute('data-title');
+      frames[i].insertBefore(label, frames[i].firstChild);
+    }
+    root.classList.add('print-slides');
+    // a slide drawn for the projector can be taller than 1280×720 at print size: shrink its body to fit
+    var bodies = [];
+    for (var j = 0; j < frames.length; j++) {
+      var f = frames[j];
+      var over = f.scrollHeight - f.clientHeight;
+      var body = f.querySelector('.fx-body, .fx-codegrid') || f.lastElementChild;
+      if (over > 0 && body) {
+        // zoom also changes how wide the content lays out, so search for the largest zoom that fits
+        var lo = 0.4;
+        var hi = 1;
+        for (var step = 0; step < 7; step++) {
+          var mid = (lo + hi) / 2;
+          body.style.zoom = String(mid);
+          if (f.scrollHeight - f.clientHeight > 0) hi = mid;
+          else lo = mid;
+        }
+        body.style.zoom = String(lo);
+        bodies.push(body);
+      }
+    }
+    function done() {
+      root.classList.remove('print-slides');
+      bodies.forEach(function (b) { b.style.zoom = ''; });
+      window.removeEventListener('afterprint', done);
+    }
+    window.addEventListener('afterprint', done);
+    window.print();
+  }
 
   // ---------- table of contents: mark the section being read ----------
   var links = document.querySelectorAll('[data-toc]');

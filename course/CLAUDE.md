@@ -4,6 +4,9 @@ This folder (`course/`) turns lecture Markdown into password-protected lecture p
 **jakapunt.github.io**. Read this whole file before writing code. The design was settled in a
 long session; follow it rather than re-deciding. Ask before changing anything marked **Decided**.
 
+**Writing or changing a lesson? Read `LESSON-STYLE.md` first** (teaching style the teacher asked for;
+`courses/nlp-basic/lesson10-pandas.md` is the model lesson).
+
 Owner: อ.ดร.จักรพันธ์ เตไชยา (Jakapun Tachaiya), Linguistics / Language and Information Technology,
 Chulalongkorn University. Courses: Python, pandas, scikit-learn, matplotlib, statistics for
 digital humanities and NLP. Students are humanities majors, many new to programming.

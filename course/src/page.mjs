@@ -87,7 +87,7 @@ ${focusDeck ? `<button type="button" class="btn btn-dark btn-focus" data-fx="ope
 <h1 lang="en">${esc(meta.title)}</h1>
 ${meta.title_th ? `<p class="banner-sub" data-only="th">${esc(meta.title_th)}</p>` : ''}
 <p class="banner-lead"><span data-only="th">${esc(leadTh ?? '')}</span><span data-only="en" lang="en">${esc(leadEn ?? '')}</span></p>
-${isHome ? '' : `<div class="banner-actions"><button type="button" class="btn btn-light" data-print aria-describedby="pdf-hint">${icon('pdf', 16)}${T(['ดาวน์โหลด PDF', 'Download PDF'])}</button><span class="banner-hint" id="pdf-hint">${T(['เปิดหน้าต่างพิมพ์ แล้วเลือก "บันทึกเป็น PDF"', 'Opens the print window; choose "Save as PDF"'])}</span></div>`}
+${isHome ? '' : `<div class="banner-actions"><button type="button" class="btn btn-light" data-print aria-describedby="pdf-hint">${icon('pdf', 16)}${T(['ดาวน์โหลด PDF', 'Download PDF'])}</button>${focusDeck ? `<button type="button" class="btn btn-light" data-print-slides aria-describedby="pdf-hint">${icon('focus', 16)}${T(['PDF แบบสไลด์', 'PDF as slides'])}</button>` : ''}<span class="banner-hint" id="pdf-hint">${T(['เปิดหน้าต่างพิมพ์ แล้วเลือก "บันทึกเป็น PDF"', 'Opens the print window; choose "Save as PDF"'])}</span></div>`}
 </div>
 </div>
 <div class="wrap layout">
