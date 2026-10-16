@@ -1,0 +1,85 @@
+/* Design tokens for course pages. Source of truth: change values here, not in components.
+   Theme "Paper": white reading cards on a warm grey ground, rust accent.
+   All text/background pairs below were checked at WCAG AA (4.5:1) or better. */
+
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Sarabun:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+  /* ground and surfaces */
+  --ground: #efebe3;          /* page background behind cards */
+  --card: #ffffff;            /* every surface students read on */
+  --card-border: #e2ddd2;
+  --card-shadow: 0 6px 20px rgba(42, 39, 34, .05);
+  --rule: #ece7dd;            /* thin lines inside cards */
+  --cream: #f5f2e9;           /* menus, inline code, chips */
+  --banner-gradient: linear-gradient(120deg, #f7e6dc 0%, #f5efe4 45%, #ebeef0 100%);
+  --summary-gradient: linear-gradient(90deg, #f8ece5, #f5f2e9);
+
+  /* text */
+  --ink: #2a2722;             /* 14.9:1 on white */
+  --ink-2: #4a453e;           /* secondary body text */
+  --muted: #6b655c;           /* 5.8:1 on white; never use anything lighter for text */
+  --accent: #a44f2b;          /* rust, 5.6:1 on white; links, active items */
+  --accent-tint: #f8ece5;
+
+  /* content-kind tags: background / text, plus a solid swatch for the legend */
+  --tag-concept-bg: #e6eef7;  --tag-concept-fg: #1f3d5c;  --tag-concept-dot: #4d7aa8;
+  --tag-example-bg: #faf0d9;  --tag-example-fg: #6b4a12;  --tag-example-dot: #c08a2e;
+  --tag-code-bg: #2a2722;     --tag-code-fg: #f5f2e9;     --tag-code-dot: #2a2722;
+  --tag-exercise-bg: #e3efe6; --tag-exercise-fg: #2e5537; --tag-exercise-dot: #4f8a5f;
+  --tag-warning-bg: #f8e5dc;  --tag-warning-fg: #7d3a1f;  --tag-warning-dot: #a44f2b;
+
+  /* status notes (always paired with an icon, never color alone) */
+  --ok: #2e5537;
+  --bad: #a44f2b;
+
+  /* code */
+  --code-bg: #2a2722;
+  --code-fg: #f0ebe0;
+  --code-keyword: #e3a07f;
+  --code-string: #c9d6a3;
+  --code-comment: #a8a196;
+  --code-line-highlight: #4a3b31;
+
+  /* type */
+  --font-thai: 'Sarabun', system-ui, sans-serif;
+  --font-latin: 'Anuphan', 'Sarabun', sans-serif;   /* real build: unicode-range split, see CLAUDE.md §4 */
+  --font-mono: 'IBM Plex Mono', 'Sarabun', ui-monospace, monospace;
+  --font-math: KaTeX_Main, 'Times New Roman', serif; /* KaTeX default fonts, rendered at build */
+
+  --text-body: 20px;      --leading-body: 1.85;
+  --text-small: 16px;     /* Thai never below this */
+  --text-label: 14px;     /* tags and IDs only */
+  --text-h1: 58px;        --leading-h1: 1.08;
+  --text-h2: 34px;        --leading-h2: 1.2;
+  --text-subtitle-th: 20px;
+  --weight-heading: 600;
+
+  /* focus mode (projector) */
+  --focus-h: 60px;
+  --focus-example: 90px;
+  --focus-chip: 80px;
+  --focus-body: 26px;
+
+  /* shape and space */
+  --radius-card: 24px;
+  --radius-block: 18px;
+  --radius-chip: 10px;
+  --radius-pill: 999px;
+  --pad-card: 32px 36px 40px;
+  --gap-cards: 28px;
+  --page-max: 1160px;
+  --reading-max: 780px;
+  --tap: 44px;            /* minimum touch target */
+
+  /* added by the build: values taken from the reference designs, so page.css has no raw colours */
+  --tag-example-border: #efe1c2;
+  --tag-exercise-border: #cfe2d4;
+  --tag-exercise-rule: #d6e6da;
+  --tag-exercise-strip-end: #eef4ef;
+  --tag-exercise-id: #4a5a4d;
+  --code-number: #f0c27b;
+  --code-rule: #3a3630;
+  --code-button-border: #5a544b;
+  --on-dark-muted: #d6d0c4;   /* secondary text on --ink backgrounds */
+}

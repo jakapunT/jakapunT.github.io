@@ -1,0 +1,7 @@
+# Add these lines to the ROOT .gitignore of jakapunt.github.io
+# (lecture sources and the password must never reach the public repo)
+course/courses/
+course/.env
+course/.preview/
+course/reference/
+course/node_modules/
