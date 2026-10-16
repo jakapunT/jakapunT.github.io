@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, icon, T, UI } from './render.mjs';
+import { esc, icon, T, UI, formatDate } from './render.mjs';
 import { fontFaceCss, preloadLinks } from './fonts.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -22,15 +22,18 @@ const jsonForScript = (obj) =>
 // Course pages live at /courses/<course>/ on jakapunt.github.io, so the main site is two levels up.
 const SITE = '../../';
 
-export function pageHtml({ course, meta, weekPad, sectionsHtml, toc, sectionCount, weekNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null }) {
+export function pageHtml({ course, meta, lessonPad, sectionsHtml, toc, sectionCount, lessonNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null, scheduled = null }) {
   // dev preview only: where the in-page editor saves to
   const editable = dev && srcFile;
-  const isHome = !meta.week;
+  const isHome = !meta.lesson;
   const fontsUrl = '../_fonts/';
-  const week = Number(meta.week);
-  const title = `W${weekPad} · ${meta.title} · ${course.title}`;
+  const lesson = Number(meta.lesson);
+  const title = `L${lessonPad} · ${meta.title} · ${course.title}`;
+  const totalLessons = course.lessons ?? (course.schedule ?? []).filter((e) => e.lesson != null).length;
 
-  const pills = [`<li class="pill pill-accent">${T(UI.weekOf(week, course.weeks))}</li>`, `<li class="pill">${T(UI.sections(sectionCount))}</li>`];
+  const pills = [`<li class="pill pill-accent">${T(UI.lessonOf(lesson, totalLessons || null))}</li>`, `<li class="pill">${T(UI.sections(sectionCount))}</li>`];
+  const date = formatDate(scheduled?.date);
+  if (date) pills.push(`<li class="pill">${T(date)}</li>`);
   if (meta.lab) {
     const lab = typeof meta.lab === 'string' ? { name: meta.lab } : meta.lab;
     pills.push(
@@ -84,13 +87,14 @@ ${focusDeck ? `<button type="button" class="btn btn-dark btn-focus" data-fx="ope
 <h1 lang="en">${esc(meta.title)}</h1>
 ${meta.title_th ? `<p class="banner-sub" data-only="th">${esc(meta.title_th)}</p>` : ''}
 <p class="banner-lead"><span data-only="th">${esc(leadTh ?? '')}</span><span data-only="en" lang="en">${esc(leadEn ?? '')}</span></p>
+${isHome ? '' : `<div class="banner-actions"><button type="button" class="btn btn-light" data-print aria-describedby="pdf-hint">${icon('pdf', 16)}${T(['ดาวน์โหลด PDF', 'Download PDF'])}</button><span class="banner-hint" id="pdf-hint">${T(['เปิดหน้าต่างพิมพ์ แล้วเลือก "บันทึกเป็น PDF"', 'Opens the print window; choose "Save as PDF"'])}</span></div>`}
 </div>
 </div>
 <div class="wrap layout">
 ${toc}
 <main id="main" tabindex="-1"${editable ? ` data-src-file="${esc(srcFile)}"` : ''}>
 ${sectionsHtml}
-${weekNav}
+${lessonNav}
 </main>
 </div>
 <div id="live" class="sr-only" aria-live="polite"></div>
@@ -98,6 +102,7 @@ ${focusDeck}
 <script type="application/json" id="course-files">${jsonForScript(files)}</script>
 <script>
 ${read('templates/page.js')}
+${read('templates/widgets.js')}
 ${focusDeck ? read('templates/focus.js') : ''}
 </script>
 ${editable ? `<script>${read('templates/dev-edit.js')}</script>` : dev ? `<script>new EventSource('/__reload').onmessage=function(e){if(e.data==='reload')location.reload()}</script>` : ''}
@@ -106,17 +111,14 @@ ${editable ? `<script>${read('templates/dev-edit.js')}</script>` : dev ? `<scrip
 `;
 }
 
-export function weekNavHtml(prev, next) {
+export function lessonNavHtml(prev, next) {
   const card = (w, dir) => {
     if (!w) return '';
-    const wk = dir === 'prev' ? `← ${T(UI.week(w.week))}` : `${T(UI.week(w.week))} →`;
-    if (!w.exists) {
-      return `<div class="week-card ${dir} disabled"><span class="wk">${wk}</span><span class="wk-title">${T(UI.notYet)}</span></div>`;
-    }
+    const wk = dir === 'prev' ? `← ${T(UI.lesson(w.lesson))}` : `${T(UI.lesson(w.lesson))} →`;
     return `<a class="week-card ${dir}" href="${esc(w.slug)}.html"><span class="wk">${wk}</span><span class="wk-title">${
       w.title_th ? `<span data-only="th">${esc(w.title_th)}</span><span data-only="en" lang="en">${esc(w.title)}</span>` : `<span lang="en">${esc(w.title)}</span>`
     }</span></a>`;
   };
   const inner = card(prev, 'prev') + card(next, 'next');
-  return inner ? `<nav class="week-nav" aria-label="สัปดาห์อื่น / Other weeks">${inner}</nav>` : '';
+  return inner ? `<nav class="week-nav" aria-label="บทเรียนอื่น / Other lessons">${inner}</nav>` : '';
 }

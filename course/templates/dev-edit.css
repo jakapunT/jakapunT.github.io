@@ -45,6 +45,10 @@ html.dev-editing [data-src] { cursor: text; }
   border: 1px solid var(--muted); border-radius: 10px; background: var(--cream); color: var(--ink);
   font: 16px/1.7 'Course Mono', 'Course Text', monospace; tab-size: 2;
 }
+.dev-translate { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 15px; color: var(--ink-2); }
+.dev-translate[hidden] { display: none; }
+.dev-translate input { width: 18px; height: 18px; accent-color: var(--ink); }
+.dev-translate input:disabled + span { color: var(--muted); }
 .dev-error { margin: 0; color: var(--bad); font-size: 15px; }
 .dev-error:empty { display: none; }
 .dev-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }

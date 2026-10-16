@@ -9,6 +9,10 @@
   var HEADERS = { 'Content-Type': 'application/json', 'X-Course-Dev': '1' };
   var KEY = 'course-dev-edit';
   var editing = false;
+  var canTranslate = false;
+  var saving = false;
+  var reloadWaiting = false;
+  fetch('/__config', { headers: { 'X-Course-Dev': '1' } }).then(function (r) { return r.json(); }).then(function (c) { canTranslate = Boolean(c.translate); }, function () {});
   try { editing = sessionStorage.getItem(KEY) === '1'; } catch (e) { /* ignore */ }
 
   // ---------- toolbar ----------
@@ -45,6 +49,8 @@
   // ---------- finding the block under the pointer ----------
   function blockAt(target) {
     if (!target || !target.closest || target.closest('.dev-bar, .dev-panel, #focus')) return null;
+    // buttons and links keep working in edit mode (focus jump, copy, show answer, links)
+    if (target.closest('button, a, input, select, textarea, summary')) return null;
     return target.closest('[data-src]');
   }
   function rectOf(el) {
@@ -117,6 +123,7 @@
       panel.innerHTML =
         '<div class="dev-panel-head"><span class="dev-where"></span><button type="button" class="dev-link" data-act="code">Open in VS Code</button></div>' +
         '<textarea spellcheck="false" aria-label="Markdown source"></textarea>' +
+        '<label class="dev-translate"><input type="checkbox" checked> <span></span></label>' +
         '<p class="dev-error" role="alert"></p>' +
         '<div class="dev-actions"><span class="dev-keys">⌘↩ save · Esc cancel</span>' +
         '<button type="button" class="dev-btn" data-act="cancel">ยกเลิก Cancel</button>' +
@@ -125,6 +132,17 @@
       panel.querySelector('.dev-where').textContent = FILE.split('/').pop() + (l.end !== l.start ? ' · lines ' + l.start + '–' + l.end : ' · line ' + l.start);
       var ta = panel.querySelector('textarea');
       var error = panel.querySelector('.dev-error');
+      // offer the English update when this edit touches Thai text
+      var hasThai = /[\u0E00-\u0E7F]/.test(src.text);
+      var tr = panel.querySelector('.dev-translate');
+      var trBox = tr.querySelector('input');
+      if (!hasThai) tr.hidden = true;
+      else if (canTranslate) tr.querySelector('span').textContent = 'อัปเดตภาษาอังกฤษให้อัตโนมัติ (Update English automatically)';
+      else {
+        trBox.checked = false;
+        trBox.disabled = true;
+        tr.querySelector('span').textContent = 'แปลอัตโนมัติไม่ได้: ไม่พบ Claude Code (Auto-translate needs Claude Code)';
+      }
       ta.value = src.text;
       ta.rows = Math.min(18, Math.max(3, src.text.split('\n').length + 1));
       ta.focus();
@@ -137,15 +155,23 @@
       function save() {
         if (ta.value === src.text) { close(); return; }
         var btn = panel.querySelector('.dev-save');
+        var translate = hasThai && canTranslate && trBox.checked;
         btn.disabled = true;
+        saving = true;
         error.textContent = '';
-        api('/__save', { file: FILE, start: l.start, end: l.end, original: src.text, text: ta.value }).then(
-          function () {
-            setStatus('Saved · rebuilding…', 'ok');
+        if (translate) btn.textContent = 'กำลังแปล… Translating…';
+        api('/__save', { file: FILE, start: l.start, end: l.end, original: src.text, text: ta.value, translate: translate }).then(
+          function (res) {
+            saving = false;
+            if (res.englishError) setStatus('Saved Thai · English not updated: ' + res.englishError, 'error');
+            else if (res.english && res.english.length) setStatus('Saved · ' + res.english.join(' · ') + ' (check it in EN mode)', 'ok');
+            else setStatus('Saved · rebuilding…', 'ok');
             try { sessionStorage.setItem('course-dev-scroll', String(window.scrollY)); } catch (e) { /* ignore */ }
+            try { sessionStorage.setItem('course-dev-status', status.textContent + '|' + status.className); } catch (e) { /* ignore */ }
             close();
+            if (reloadWaiting) location.reload();
           },
-          function (err) { error.textContent = err.message; btn.disabled = false; }
+          function (err) { saving = false; error.textContent = err.message; btn.disabled = false; btn.textContent = 'บันทึก Save'; }
         );
       }
       panel.addEventListener('click', function (e) {
@@ -171,12 +197,23 @@
   });
 
   // ---------- live reload, keeping the scroll position ----------
+  // keep the last save message across the reload
+  try {
+    var last = sessionStorage.getItem('course-dev-status');
+    if (last) {
+      sessionStorage.removeItem('course-dev-status');
+      var parts = last.split('|');
+      status.textContent = parts[0];
+      status.className = parts[1] || 'dev-status';
+    }
+  } catch (e) { /* ignore */ }
   try {
     var y = sessionStorage.getItem('course-dev-scroll');
     if (y) { sessionStorage.removeItem('course-dev-scroll'); window.scrollTo(0, Number(y)); }
   } catch (e) { /* ignore */ }
   new EventSource('/__reload').onmessage = function (e) {
     if (e.data === 'reload') {
+      if (saving) { reloadWaiting = true; return; } // reload once the save (and translation) is done
       if (panel) { setStatus('The file changed; reload when you are done editing', 'error'); return; }
       try { sessionStorage.setItem('course-dev-scroll', String(window.scrollY)); } catch (err) { /* ignore */ }
       location.reload();

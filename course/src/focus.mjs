@@ -10,8 +10,9 @@
 //                    table or key-term list (heading alone if there is none)
 // Paragraphs never show; the teacher says them.
 
-import { esc, inline, T, UI, icon, renderTokens, renderTable, renderBlocks, wrapLastExpression, ctxFile } from './render.mjs';
+import { esc, inline, T, UI, icon, renderTokens, renderTable, renderBlocks, wrapLastExpression, ctxFile, splitColumns, outputTable } from './render.mjs';
 import { renderTransform } from './transform.mjs';
+import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards } from './blocks.mjs';
 import { highlightLines } from './highlight.mjs';
 import { splitTrailingAttrs, LectureError } from './parse.mjs';
 
@@ -31,17 +32,36 @@ function sectionFrames(s, ctx) {
   const frame = (kind, body, { steps = 1, extra = '' } = {}) =>
     `<section class="fx-frame fx-k-${kind}" data-section="${s.id}" data-title="${esc(plain(inline(s.title)))}" data-steps="${steps}"${extra} hidden>${body}</section>`;
 
+  // ::: columns: one two-part frame, each side showing only what projects well
+  // (code, tables, figures, prompts, and lists such as a ::: steps loop beside them)
+  const columnsFrame = (cols) => {
+    const [main, side] = splitColumns(cols.children);
+    const left = focusPiece(main, ctx);
+    const right = focusPiece(side, ctx);
+    if (left && right) {
+      const even = cols.attrs.split === 'even' ? ' fx-cols-even' : '';
+      return frame('cols', `${head(' fx-head-sm')}<div class="fx-body"><div class="fx-cols${even}"><div class="fx-col">${left}</div><div class="fx-col">${right}</div></div></div>`);
+    }
+    if (left || right) return frame('default', `${head(' fx-head-sm')}<div class="fx-body">${left || right}</div>`);
+    return null;
+  };
+
   const walk = (nodes, fn, parentExercise = null) => {
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       fn(n, i, nodes, parentExercise);
-      if (n.type === 'container' && !['th', 'en', 'answer', 'focus', 'summary'].includes(n.name)) {
+      if (n.type === 'container' && !['th', 'en', 'answer', 'focus', 'summary', 'columns'].includes(n.name)) {
         walk(n.children, fn, n.name === 'exercise' ? n : parentExercise);
       }
     }
   };
 
   walk(s.blocks, (n, i, siblings, exercise) => {
+    if (n.type === 'container' && n.name === 'columns') {
+      const f = columnsFrame(n);
+      if (f) out.push(f);
+      return;
+    }
     if (n.type === 'container' && n.name === 'focus') {
       const answer = exercise?.children.find((c) => c.type === 'container' && c.name === 'answer');
       out.push(focusFrame(n, exercise, answer, head, frame, ctx));
@@ -51,6 +71,10 @@ function sectionFrames(s, ctx) {
       const next = siblings[i + 1]?.type === 'fence' && siblings[i + 1].lang === 'output' ? siblings[i + 2] : siblings[i + 1];
       const stepOutputs = next?.type === 'container' && next.name === 'step-outputs' ? next : null;
       out.push(codeFrame(n, stepOutputs, s, frame, ctx));
+    } else if (n.type === 'fence' && n.lang === 'cards') {
+      out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderCards(n, { ...ctx, file: ctxFile() })}</div>`));
+    } else if (n.type === 'fence' && n.lang === 'index-explorer') {
+      out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderIndexExplorer(n, { ...ctx, file: ctxFile() })}</div>`));
     } else if (n.type === 'container' && n.name === 'transform') {
       out.push(frame('transform', `${head(' fx-head-sm')}<div class="fx-body">${renderTransform(n, { ...ctx, file: ctxFile(), renderBlocks: (nodes) => renderBlocks(nodes, ctx) })}</div>`));
     }
@@ -62,11 +86,56 @@ function sectionFrames(s, ctx) {
   walk(s.blocks, (n) => {
     if (visual) return;
     if (n.type === 'container' && (n.name === 'example' || n.name === 'tokens')) visual = n;
-    else if (n.type === 'fence' && !['output'].includes(n.lang)) visual = n;
+    else if (n.type === 'fence' && n.lang !== 'output' && !(n.lang === 'prompt' && n.attrs.attach)) visual = n;
     else if (n.type === 'table' || n.type === 'deflist') visual = n;
   });
   const compact = visual && (visual.type === 'table' || visual.type === 'fence');
   return [frame(visual ? 'default' : 'title', `${head(!visual ? ' fx-head-lg' : compact ? ' fx-head-sm' : '')}${visual ? `<div class="fx-body">${visualHtml(visual, ctx)}</div>` : ''}`)];
+}
+
+// What one side of a ::: columns frame shows: visuals as they are, lists as big points.
+// Paragraphs and warnings are what the teacher says, so they never show.
+function focusPiece(nodes, ctx) {
+  return nodes
+    .map((n, i) => {
+      if (n.type === 'fence' && n.lang === 'output') {
+        // shown under its code: in a side-by-side frame the results are what students compare
+        if (nodes[i - 1]?.type !== 'fence') return '';
+        return `<div class="fx-mini-out">${n.attrs.table ? outputTable(n.text, n.attrs.table) : `<pre>${esc(n.text.replace(/\s+$/, ''))}</pre>`}</div>`;
+      }
+      if (n.type === 'fence' && n.lang === 'prompt' && n.attrs.attach) return ''; // behind the code's Prompt button in page view
+      if (n.type === 'fence') return visualHtml(n, ctx);
+      if (n.type === 'table') return renderTable(n);
+      if (n.type === 'md') return pointsHtml(n.text);
+      if (n.type === 'container') {
+        if (n.name === 'th' || n.name === 'en') {
+          const inner = focusPiece(n.children, ctx);
+          return inner ? `<div data-only="${n.name}" lang="${n.name}">${inner}</div>` : '';
+        }
+        if (n.name === 'steps') return pointsHtml(n.lines.join('\n'), true);
+        if (['concept', 'example'].includes(n.name)) return focusPiece(n.children, ctx);
+        if (n.name === 'tokens') return renderTokens(n);
+      }
+      return '';
+    })
+    .join('');
+}
+
+function pointsHtml(text, stripAttrs = false) {
+  const items = text
+    .split('\n')
+    .map((l) => l.match(/^\s*(?:([-*])|(\d+)[.)])\s+(.*)$/))
+    .filter(Boolean);
+  if (!items.length) return '';
+  const ordered = !items[0][1];
+  const li = items
+    .map((m) => {
+      if (!stripAttrs) return `<li>${inline(m[3])}</li>`;
+      const [text, attrs] = splitTrailingAttrs(m[3]);
+      return `<li>${inline(text)}${attrs.th ? `<em data-only="th">${inline(attrs.th)}</em>` : ''}</li>`;
+    })
+    .join('');
+  return ordered ? `<ol class="fx-points">${li}</ol>` : `<ul class="fx-points">${li}</ul>`;
 }
 
 function visualHtml(n, ctx) {
@@ -80,7 +149,11 @@ function visualHtml(n, ctx) {
     return `<ul class="fx-terms">${n.items.map((it) => `<li lang="en">${inline(splitTrailingAttrs(it.term)[0])}</li>`).join('')}</ul>`;
   }
   if (n.type === 'fence') {
-    if (['dataframe', 'prompt', 'figure', 'plot', 'error', 'formula', 'read-result'].includes(n.lang)) return '';
+    if (n.lang === 'dataframe') return renderDataframe(n, { ...ctx, file: ctxFile() });
+    if (n.lang === 'prompt') return renderPrompt(n, { ...ctx, file: ctxFile() });
+    if (n.lang === 'figure') return renderFigure(n, { ...ctx, file: ctxFile() });
+    if (n.lang === 'cards') return renderCards(n, { ...ctx, file: ctxFile() });
+    if (['plot', 'error', 'formula', 'read-result'].includes(n.lang)) return '';
     return `<pre class="fx-code fx-code-plain"><code>${codeLines(n, ctx)}</code></pre>`;
   }
   if (n.type === 'md') return '';
@@ -120,7 +193,13 @@ function exerciseLabelText(n) {
 }
 
 function answerCards(answer) {
-  const cards = answer.lines
+  // list items of the answer itself, not lines inside a code or prompt fence
+  let inFence = false;
+  const listLines = answer.lines.filter((l) => {
+    if (/^\s*(```|~~~)/.test(l)) inFence = !inFence;
+    return !inFence;
+  });
+  const cards = listLines
     .map((l) => l.match(/^\s*[-*]\s+(.*)$/))
     .filter(Boolean)
     .map((m) => {
@@ -152,7 +231,7 @@ function stepsFrame(n, head, frame) {
   const morph = items.some((it) => it.text.includes('→') || it.attrs.prompt_th || it.attrs.prompt_en || it.attrs.note_th || it.attrs.note_en);
   if (!morph) {
     // a plain list: past steps stay, faded; future steps stay hidden
-    const lis = items.map((it, k) => `<li class="fx-step" data-step="${k}">${inline(it.text)}${note(it)}</li>`).join('');
+    const lis = items.map((it, k) => `<li class="fx-step" data-step="${k}">${inline(it.text)}${it.attrs.th ? `<span class="fx-note" data-only="th">${inline(it.attrs.th)}</span>` : ''}${note(it)}</li>`).join('');
     return frame('steps fx-list', `${head()}<div class="fx-body"><ol class="fx-steplist">${lis}</ol></div>`, { steps: items.length });
   }
 
@@ -221,9 +300,12 @@ function codeFrame(n, stepOutputs, s, frame, ctx) {
       }</div>`;
     })
     .join('');
+  // long lines get a wider code column and smaller type so nothing is cut off
+  const longest = Math.max(...n.text.split('\n').map((l) => l.length));
+  const width = longest > 62 ? ' fx-code-xlong' : longest > 44 ? ' fx-code-long' : '';
   return frame(
     'code',
-    `<header class="fx-head fx-head-sm"><h2 lang="en">${inline(s.title)}</h2></header><div class="fx-codegrid"><pre class="fx-code"><code>${codeLines(n, ctx)}</code></pre><div class="fx-side">${side}</div></div>`,
+    `<header class="fx-head fx-head-sm"><h2 lang="en">${inline(s.title)}</h2></header><div class="fx-codegrid${width}"><pre class="fx-code"><code>${codeLines(n, ctx)}</code></pre><div class="fx-side">${side}</div></div>`,
     { steps: lines.length, extra: ` data-lines="${lines.join(',')}"` },
   );
 }

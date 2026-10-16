@@ -26,15 +26,15 @@ digital humanities and NLP. Students are humanities majors, many new to programm
 jakapunt.github.io/                 existing Vite + React site, deployed by .github/workflows/deploy.yml
 ├── src/ ...                        do not touch the existing site except to add a link to courses
 ├── public/courses/<course>/        ENCRYPTED output only, committed, shipped by the existing deploy
-│   ├── index.html                  course home (encrypted)
-│   └── week05.html                 one encrypted file per lecture
+│   ├── index.html                  course home (encrypted): this year's schedule
+│   └── lesson10-pandas.html        one encrypted file per lesson
 └── course/                         this tool (own package.json, separate from the site)
     ├── CLAUDE.md                   this file
     ├── tokens.css                  design tokens (source of truth for colors/type)
     ├── reference/                  static HTML exports of the approved designs (visual spec)
     ├── courses/<course>/           SOURCE, gitignored, backed up outside git (Google Drive)
-    │   ├── course.yml              course settings (title, env, password var name)
-    │   ├── week05.md
+    │   ├── course.yml              course settings + this year's schedule (lesson → week, date)
+    │   ├── lesson10-pandas.md      lessons are numbered in course order, never by week
     │   ├── data/*.csv              dataframe sources
     │   ├── images/*.png            figures and plot images
     │   └── notebooks/*.ipynb
@@ -55,6 +55,7 @@ Course slug for the first course: `nlp-basic` ("Basic Programming for NLP").
 | `npm run build` | Build unencrypted HTML into `.preview/` once |
 | `npm run publish -- <course>` | Build, encrypt with the password from `.env`, write to `../public/courses/<course>/` |
 | `npm run check` | The guard (section 9) on demand |
+| `npm run outputs -- <course> <lesson>` | Run a lesson's Python cells with `course/.venv` (Colab's pandas, 2.2.x) and write the real results into its ```output blocks |
 
 The teacher's loop: edit `.md` → watch `npm run dev` → `npm run publish -- nlp-basic` → commit → push.
 The existing deploy workflow then ships `public/`.
@@ -105,36 +106,42 @@ style, so restyle them to the card/tag look of `lecture-page-th.html`.
 ## 6. Markdown syntax (Decided; implement exactly)
 
 Use markdown-it + markdown-it-container + markdown-it-attrs + gray-matter, or equivalents.
-`courses/nlp-basic/week05.md` is the canonical example. Everything it uses is required, including
+`courses/nlp-basic/lesson11-tokenization.md` is the canonical syntax example and
+`lesson10-pandas.md` the canonical full lesson. Everything it uses is required, including
 the forms shown only there:
 - `{th="..."}` on table cells and steps items, which adds a Thai subtitle;
 - definition lists whose definitions hold `::: th` / `::: en`;
 - answer list items with `{th="..." en="..."}` meanings.
 
+### Lessons, not weeks (changed 2026-10, at the teacher's request)
+Lessons carry a running number in course order (`lesson: 10`), never a week number, because the
+calendar changes every year. The year's calendar lives only in `course.yml` under `schedule:`
+(`{ lesson: 10, week: 13, date: 2026-10-30 }`, plus `note:` entries for exams and holidays). The
+course home renders that schedule; a lesson page shows "บทที่ 10 จาก 13" and its date. Prev/next
+follow lesson numbers. Files are `lesson<NN>-<topic>.md`.
+
 ### Front matter
 ```yaml
 ---
 course: nlp-basic
-week: 5
+lesson: 11
 title: Tokenization and text normalization
 title_th: การตัดคำและการปรับรูปข้อความ
 lead_th: โปรแกรมแบ่งข้อความดิบออกเป็นหน่วยที่นับได้อย่างไร ...
 lead_en: How a program cuts raw text into units it can count ...
 lab: { name: Tokenizer, url: https://jakapunt.github.io/dashboard/Lab-Tokenizer.dc.html }
 reading: Jurafsky & Martin, SLP ch. 2
-prev: week04
-next: week06
 ---
 ```
 `env` (`colab` | `vscode`) and `install` come from `course.yml` and can be overridden per week.
 
 ### Sections and IDs
 ```markdown
-## Spaces are not enough {#w05-s02 th="เว้นวรรคอย่างเดียวไม่พอ"}
+## Spaces are not enough {#l11-s02 th="เว้นวรรคอย่างเดียวไม่พอ"}
 ```
-- The ID format is `w<WW>-s<NN>` and is **required**. Fail the build if an ID is missing or
-  duplicated. IDs are shown as `W05-S02` and are how the teacher asks for fixes, so never
-  renumber existing IDs automatically.
+- The ID format is `l<LL>-s<NN>` (lesson, section) and is **required**. Fail the build if an ID
+  is missing or duplicated. IDs are shown as `L11-S02` and are how the teacher asks for fixes,
+  so never renumber existing IDs automatically.
 - The summary strip:
   ```markdown
   ::: summary
@@ -224,6 +231,10 @@ Inline math is `$...$`. Display math is `$$...$$`.
   as int64, float64, or object.
 - **figure:** if `src` is missing, render the dashed placeholder showing the expected filename.
   Number figures automatically per week (รูปที่ 5.1, 5.2 ...).
+- **prompt {attach}:** a ```prompt placed right after a code cell (and its ```output) becomes a
+  **Prompt** button in that cell's header, opening the prompt above the code. Use it for "the
+  plain-words prompt that writes this code". The PDF always shows it.
+  `{attach open}` starts with the prompt opened (used in the groupby sections).
 - **plot:** show the image first and hide the code. Remind authors in the docs that matplotlib
   needs a Thai font, or Thai labels render as boxes. Colab has no Thai font installed.
 
@@ -238,7 +249,8 @@ The same page, toggled with the **Focus** button or the **F** key. See `referenc
 - What makes a frame:
   - By default, a section's frame is its heading plus its first example, tokens, figure, plot,
     dataframe, or code block.
-  - `::: focus ... :::` overrides that with exactly what to show.
+  - `::: focus ... :::` overrides that with exactly what to show. It also shows in page view; `::: focus {page=false}`
+    makes it a projector-only frame (for example the table plus the code students predict).
   - `::: steps` gives one frame per list item. Past steps stay visible but faded, and future
     steps stay hidden. The changing thing stays in the same screen position, so students see it
     change (string → dashed box → token chips).

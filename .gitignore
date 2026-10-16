@@ -3,6 +3,7 @@ course/courses/
 course/.env
 course/.preview/
 course/node_modules/
+course/.venv/
 # design references contain full lecture text in plain HTML
 course/reference/
 

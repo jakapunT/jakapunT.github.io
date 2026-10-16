@@ -68,8 +68,8 @@
   --radius-pill: 999px;
   --pad-card: 32px 36px 40px;
   --gap-cards: 28px;
-  --page-max: 1160px;
-  --reading-max: 780px;
+  --page-max: 1280px;     /* desktop first: pages are taught on classroom screens */
+  --reading-max: 924px;   /* page-max - gutters - contents column - gap */
   --tap: 44px;            /* minimum touch target */
 
   /* added by the build: values taken from the reference designs, so page.css has no raw colours */

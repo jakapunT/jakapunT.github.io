@@ -9,9 +9,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
 import { parseLecture, LectureError } from './parse.mjs';
-import { renderLecture, setFile, esc, T, UI } from './render.mjs';
+import { renderLecture, setFile, esc, T, UI, formatDate } from './render.mjs';
 import { initHighlighter } from './highlight.mjs';
-import { pageHtml, weekNavHtml, COURSE_DIR } from './page.mjs';
+import { pageHtml, lessonNavHtml, COURSE_DIR } from './page.mjs';
 import { renderFocusDeck, focusDeckHtml } from './focus.mjs';
 import { copyFonts } from './fonts.mjs';
 
@@ -34,14 +34,21 @@ export function loadCourse(slug) {
   const course = { slug, ...loadYaml(fs.readFileSync(ymlPath, 'utf8')) };
   const lectures = fs
     .readdirSync(dir)
-    .filter((f) => /^week\d+.*\.md$/.test(f))
+    .filter((f) => /^lesson\d+.*\.md$/.test(f))
     .sort()
     .map((f) => {
       const file = path.join(dir, f);
       const rel = path.relative(COURSE_DIR, file);
       const lecture = parseLecture(fs.readFileSync(file, 'utf8'), rel);
       return { slug: f.replace(/\.md$/, ''), file, rel, ...lecture };
-    });
+    })
+    .sort((a, b) => Number(a.meta.lesson) - Number(b.meta.lesson));
+  const seen = new Map();
+  for (const l of lectures) {
+    if (l.meta.lesson == null || !Number.isInteger(Number(l.meta.lesson))) throw new LectureError(l.rel, 1, 'front matter needs "lesson:" (its running number in the course, e.g. lesson: 10)');
+    if (seen.has(Number(l.meta.lesson))) throw new LectureError(l.rel, 1, `lesson ${l.meta.lesson} is also used by ${seen.get(Number(l.meta.lesson))}`);
+    seen.set(Number(l.meta.lesson), l.rel);
+  }
   return { dir, course, lectures };
 }
 
@@ -49,22 +56,17 @@ export function loadCourse(slug) {
 export async function buildCourse(slug, { dev = false } = {}) {
   await initHighlighter();
   const { dir, course, lectures } = loadCourse(slug);
-  const bySlug = new Map(lectures.map((l) => [l.slug, l]));
-  const weekInfo = (s) => {
-    if (!s) return null;
-    const l = bySlug.get(s);
-    const num = Number(String(s).match(/\d+/)?.[0]);
-    return l ? { slug: s, exists: true, week: Number(l.meta.week ?? num), title: l.meta.title, title_th: l.meta.title_th } : { slug: s, exists: false, week: num };
-  };
+  // prev / next follow the lesson numbers, not the calendar
+  const navInfo = (l) => (l ? { slug: l.slug, lesson: Number(l.meta.lesson), title: l.meta.title, title_th: l.meta.title_th } : null);
 
   const pages = [];
   for (const lec of lectures) {
     const meta = lec.meta;
-    if (meta.week == null) throw new LectureError(lec.rel, 1, 'front matter needs "week:"');
+    const index = lectures.indexOf(lec);
     if (!meta.title) throw new LectureError(lec.rel, 1, 'front matter needs "title:"');
-    const weekPad = String(meta.week).padStart(2, '0');
+    const lessonPad = String(meta.lesson).padStart(2, '0');
     for (const s of lec.sections) {
-      if (!s.id.startsWith(`w${weekPad}-`)) throw new LectureError(lec.rel, s.line, `section ID "${s.id}" should start with w${weekPad}- for week ${meta.week}`);
+      if (!s.id.startsWith(`l${lessonPad}-`)) throw new LectureError(lec.rel, s.line, `section ID "${s.id}" should start with l${lessonPad}- for lesson ${meta.lesson}`);
     }
 
     const files = {};
@@ -75,7 +77,9 @@ export async function buildCourse(slug, { dev = false } = {}) {
       installShown: false,
       dev,
       cellCount: 0,
-      weekPad,
+      figureCount: 0,
+      sourceDir: dir,
+      lessonPad,
       addFile(f) {
         const id = `f${++fileSeq}`;
         files[id] = f;
@@ -101,11 +105,12 @@ export async function buildCourse(slug, { dev = false } = {}) {
     const html = pageHtml({
       course,
       meta,
-      weekPad,
+      lessonPad,
       sectionsHtml,
       toc,
       sectionCount: lec.sections.length,
-      weekNav: weekNavHtml(weekInfo(meta.prev), weekInfo(meta.next)),
+      lessonNav: lessonNavHtml(navInfo(lectures[index - 1]), navInfo(lectures[index + 1])),
+      scheduled: scheduleFor(course, meta.lesson),
       files,
       dev,
       focusDeck,
@@ -118,25 +123,40 @@ export async function buildCourse(slug, { dev = false } = {}) {
   return { course, pages };
 }
 
-// Minimal course home (milestone 4 gives it the full design).
+// This year's date for a lesson, from course.yml schedule (lesson pages never hard-code it).
+export function scheduleFor(course, lesson) {
+  return (course.schedule ?? []).find((e) => Number(e.lesson) === Number(lesson)) ?? null;
+}
+
+// Course home: this year's schedule from course.yml, linking the lessons that exist.
 function courseHomeHtml(course, lectures, dev) {
-  const items = lectures
-    .map(
-      (l) =>
-        `<li><a class="week-card" href="${l.slug}.html"><span class="wk">${T(UI.week(l.meta.week))}</span><span class="wk-title"><span lang="en">${esc(l.meta.title)}</span>${
-          l.meta.title_th ? `<span class="cell-sub" data-only="th">${esc(l.meta.title_th)}</span>` : ''
-        }</span></a></li>`,
-    )
+  const byLesson = new Map(lectures.map((l) => [Number(l.meta.lesson), l]));
+  const entries = course.schedule?.length ? course.schedule : lectures.map((l) => ({ lesson: l.meta.lesson }));
+  const items = entries
+    .map((e) => {
+      const date = formatDate(e.date);
+      const when = [date ? T(date) : '', e.week ? T(UI.week(e.week)) : ''].filter(Boolean).join('<span aria-hidden="true"> · </span>');
+      if (e.lesson == null) {
+        return `<li class="sched-row is-event"><span class="sched-when">${when}</span><span class="sched-title">${T([e.note_th ?? e.note ?? '', e.note ?? e.note_th ?? ''])}</span></li>`;
+      }
+      const l = byLesson.get(Number(e.lesson));
+      const title = l?.meta.title ?? e.title ?? '';
+      const titleTh = l?.meta.title_th ?? e.title_th;
+      const name = `<span class="sched-n">${T(UI.lesson(e.lesson))}</span><span class="sched-name"><span lang="en">${esc(title)}</span>${titleTh ? `<span class="cell-sub" data-only="th">${esc(titleTh)}</span>` : ''}</span>`;
+      return l
+        ? `<li class="sched-row is-open"><span class="sched-when">${when}</span><a class="sched-title" href="${l.slug}.html">${name}</a></li>`
+        : `<li class="sched-row"><span class="sched-when">${when}</span><span class="sched-title">${name}<span class="sched-soon">${T(UI.notYet)}</span></span></li>`;
+    })
     .join('');
-  const sectionsHtml = `<section class="card section"><div class="section-body"><div class="section-head"><h2 id="weeks-title">${T(['บทเรียน', 'Lectures'])}</h2></div><ul class="home-list" aria-labelledby="weeks-title">${items}</ul></div></section>`;
+  const sectionsHtml = `<section class="card section"><div class="section-body"><div class="section-head"><h2 id="sched-title">${T(['ตารางเรียน', 'Schedule'])}</h2></div><ul class="sched" aria-labelledby="sched-title">${items}</ul></div></section>`;
   return pageHtml({
     course,
-    meta: { week: '', title: course.title, title_th: course.title_th },
-    weekPad: '',
+    meta: { lesson: '', title: course.title, title_th: course.title_th },
+    lessonPad: '',
     sectionsHtml,
     toc: '',
     sectionCount: lectures.length,
-    weekNav: '',
+    lessonNav: '',
     files: {},
     dev,
   })

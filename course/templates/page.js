@@ -18,9 +18,26 @@
     }
   }
   setLang(root.getAttribute('data-lang') === 'en' ? 'en' : 'th', false);
+  // Thai and English differ in length, so switching would jump the page. Keep the section
+  // being read at the same place on screen.
+  function readingAnchor() {
+    var bar = document.querySelector('.topbar');
+    var top = bar ? bar.getBoundingClientRect().bottom : 0;
+    var blocks = document.querySelectorAll('main article.section, main .week-nav');
+    for (var i = 0; i < blocks.length; i++) {
+      var r = blocks[i].getBoundingClientRect();
+      if (r.bottom > top + 8) return { el: blocks[i], offset: r.top };
+    }
+    return null;
+  }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-set-lang]');
-    if (b) setLang(b.getAttribute('data-set-lang'), true);
+    if (!b) return;
+    var lang = b.getAttribute('data-set-lang');
+    if (lang === root.getAttribute('data-lang')) return;
+    var anchor = window.scrollY > 0 ? readingAnchor() : null;
+    setLang(lang, true);
+    if (anchor) window.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.offset, behavior: 'instant' });
   });
 
   // ---------- small helpers ----------
@@ -75,6 +92,15 @@
       if (panel) panel.hidden = !open;
       return;
     }
+    // the prompt behind a code cell's Prompt button
+    var pr = e.target.closest('.btn-prompt');
+    if (pr) {
+      var box = document.getElementById(pr.getAttribute('aria-controls'));
+      var show = pr.getAttribute('aria-expanded') !== 'true';
+      pr.setAttribute('aria-expanded', String(show));
+      if (box) box.hidden = !show;
+      return;
+    }
     // copy
     var cp = e.target.closest('[data-copy]');
     if (cp) {
@@ -88,6 +114,11 @@
         },
         function () { announce('คัดลอกไม่สำเร็จ', 'Copy failed'); }
       );
+      return;
+    }
+    // Download PDF: the browser's print window, with the print layout from page.css
+    if (e.target.closest('[data-print]')) {
+      window.print();
       return;
     }
     // download

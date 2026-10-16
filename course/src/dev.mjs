@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { COURSE_DIR } from './page.mjs';
-import { parseLecture } from './parse.mjs';
+// parse.mjs is imported fresh for each save (see loadParser), so rule changes apply without a restart
 
 const PORT = Number(process.env.PORT ?? 5180);
 const PREVIEW = path.join(COURSE_DIR, '.preview');
@@ -44,6 +44,23 @@ function rebuild() {
 }
 
 // ---------------------------------------------------------------- editing
+
+// Builds run in a fresh process, but this server lives on. Import the parser anew each time so a
+// save is checked with the same rules the next build will use.
+const loadParser = async () => (await import(`./parse.mjs?v=${Date.now()}`)).parseLecture;
+const loadFresh = async (name) => import(`./${name}?v=${Date.now()}`);
+
+// course/.env, read on every request so adding ANTHROPIC_API_KEY needs no restart. Never logged.
+function readDotEnv() {
+  const file = path.join(COURSE_DIR, '.env');
+  const env = {};
+  if (!fs.existsSync(file)) return env;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m) env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+  return env;
+}
 
 class EditError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -124,6 +141,7 @@ async function handleEdit(req, res, url) {
 
       // refuse anything that would break the build or drop a section ID
       const rel = path.relative(COURSE_DIR, abs);
+      const parseLecture = await loadParser();
       let parsed;
       try {
         parsed = parseLecture(after, rel);
@@ -136,11 +154,44 @@ async function handleEdit(req, res, url) {
       if (lost.length) throw new EditError(422, `Not saved: section ${lost.map((x) => x.toUpperCase()).join(', ')} would disappear. Remove sections in VS Code if you mean it.`);
 
       const saved = backup(abs, before);
-      const tmp = `${abs}.saving`;
-      fs.writeFileSync(tmp, after);
-      fs.renameSync(tmp, abs);
+      const write = (text) => {
+        const tmp = `${abs}.saving`;
+        fs.writeFileSync(tmp, text);
+        fs.renameSync(tmp, abs);
+      };
+      write(after);
       console.log(`edited ${rel} lines ${start}-${end} (previous version: .preview/.history/${saved})`);
-      return send(200, { ok: true });
+
+      // keep the English in step with the Thai
+      if (!body.translate) return send(200, { ok: true });
+      const { translationBackend, translateToEnglish } = await loadFresh('translate.mjs');
+      const dotenv = readDotEnv();
+      if (!translationBackend(dotenv)) return send(200, { ok: true, englishError: 'no translator: install Claude Code, or set ANTHROPIC_API_KEY in course/.env' });
+      try {
+        const { syncEnglish } = await loadFresh('sync-english.mjs');
+        const result = await syncEnglish({
+          before,
+          after,
+          file: rel,
+          parseLecture,
+          translate: (args) => translateToEnglish({ ...args, dotenv }),
+        });
+        if (result.done.length) {
+          if (fs.readFileSync(abs, 'utf8') !== after) throw new Error('the file changed while translating; English not written');
+          write(result.text);
+          console.log(`  ${result.done.join('; ')}`);
+        }
+        return send(200, { ok: true, english: result.done });
+      } catch (e) {
+        console.warn(`  English not updated: ${e.message}`);
+        return send(200, { ok: true, englishError: e.message });
+      }
+    }
+
+    if (url.pathname === '/__config' && req.method === 'GET') {
+      checkCaller(req);
+      const { translationBackend } = await loadFresh('translate.mjs');
+      return send(200, { translate: Boolean(translationBackend(readDotEnv())) });
     }
 
     if (url.pathname === '/__open' && req.method === 'POST') {
@@ -172,7 +223,7 @@ http
       req.on('close', () => clients.delete(res));
       return;
     }
-    if (url === '/__source' || url === '/__save' || url === '/__open') {
+    if (url === '/__source' || url === '/__save' || url === '/__open' || url === '/__config') {
       handleEdit(req, res, parsedUrl);
       return;
     }

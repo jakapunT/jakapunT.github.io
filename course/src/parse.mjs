@@ -74,8 +74,8 @@ export function parseLecture(source, file) {
 
   const seen = new Map();
   for (const s of sections) {
-    if (!s.id) throw new LectureError(file, s.line, `section "${s.title}" has no ID. Add one like {#w05-s01 th="..."}`);
-    if (!/^w\d{2}-s\d{2}$/.test(s.id)) throw new LectureError(file, s.line, `section ID "${s.id}" must look like w05-s01`);
+    if (!s.id) throw new LectureError(file, s.line, `section "${s.title}" has no ID. Add one like {#l10-s01 th="..."}`);
+    if (!/^l\d{2}-s\d{2}$/.test(s.id)) throw new LectureError(file, s.line, `section ID "${s.id}" must look like l10-s01 (lesson 10, section 1)`);
     if (seen.has(s.id)) throw new LectureError(file, s.line, `section ID "${s.id}" is already used on line ${seen.get(s.id)}`);
     seen.set(s.id, s.line);
     s.end = [...s.lines].reverse().find((l) => l.text.trim())?.n ?? s.line;
@@ -114,7 +114,9 @@ export function parseBlocks(lines, file) {
         body.push(lines[j].text);
       }
       if (j >= lines.length) throw new LectureError(file, n, 'code block is never closed');
-      const [, attrs] = splitTrailingAttrs(`x ${f[4]}`);
+      // fence attributes may also be bare words, like ```prompt {attach}
+      const braces = f[4].match(/^\{([^{}]*)\}$/);
+      const attrs = braces ? parseAttrs(braces[1]) : splitTrailingAttrs(`x ${f[4]}`)[1];
       nodes.push({ type: 'fence', lang: f[3] || '', attrs, text: dedent(body).join('\n'), line: n, end: lines[j].n });
       i = j + 1;
       continue;

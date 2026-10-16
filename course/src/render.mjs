@@ -3,7 +3,8 @@
 import MarkdownIt from 'markdown-it';
 import { LectureError, splitTrailingAttrs } from './parse.mjs';
 import { highlightLines } from './highlight.mjs';
-import { renderTransform } from './transform.mjs';
+import { renderTransform, parseCsv } from './transform.mjs';
+import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards } from './blocks.mjs';
 
 const md = new MarkdownIt({ html: true, linkify: true, typographer: false });
 const defaultLinkOpen = md.renderer.rules.link_open ?? ((tokens, i, opts, env, self) => self.renderToken(tokens, i, opts));
@@ -19,7 +20,20 @@ md.renderer.rules.link_open = (tokens, i, opts, env, self) => {
 export const esc = (s) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const inline = (s) => md.renderInline(String(s ?? ''));
-const block = (s) => md.render(String(s ?? ''));
+// "### Heading {th="หัวข้อย่อย"}" inside a section: an English sub-heading with a Thai subtitle
+const SUBHEAD_RE = /^(#{3,4})\s+(.*?)\s*\{th="([^"]*)"\}\s*$/gm;
+const block = (s) => {
+  const text = String(s ?? '');
+  let out = '';
+  let last = 0;
+  for (const m of text.matchAll(SUBHEAD_RE)) {
+    out += md.render(text.slice(last, m.index));
+    const h = m[1].length;
+    out += `<h${h} class="sub-h" lang="en">${md.renderInline(m[2])}</h${h}><p class="sub-h-th" data-only="th">${esc(m[3])}</p>`;
+    last = m.index + m[0].length;
+  }
+  return out + md.render(text.slice(last));
+};
 
 // ---------------------------------------------------------------- UI text (Thai, English)
 
@@ -31,7 +45,8 @@ export const UI = {
   code: ['โค้ด', 'Code'],
   exercise: ['แบบฝึกหัด', 'Exercise'],
   warning: ['ระวัง', 'Watch out'],
-  weekOf: (w, n) => [`สัปดาห์ที่ ${w}${n ? ` จาก ${n}` : ''}`, `Week ${w}${n ? ` of ${n}` : ''}`],
+  lessonOf: (n, total) => [`บทที่ ${n}${total ? ` จาก ${total}` : ''}`, `Lesson ${n}${total ? ` of ${total}` : ''}`],
+  lesson: (n) => [`บทที่ ${n}`, `Lesson ${n}`],
   sections: (n) => [`${n} หัวข้อ`, `${n} sections`],
   showAnswer: ['ดูเฉลย', 'Show answer'],
   hideAnswer: ['ซ่อนเฉลย', 'Hide answer'],
@@ -47,6 +62,17 @@ export const UI = {
   installOnce: ['ติดตั้งใน Terminal ครั้งเดียว', 'Install once in the Terminal'],
   reading: ['อ่านเพิ่ม', 'Reading'],
 };
+
+// [Thai date, English date] for a schedule date from course.yml
+export function formatDate(d) {
+  if (!d) return null;
+  const date = d instanceof Date ? d : new Date(String(d));
+  if (Number.isNaN(date.getTime())) return null;
+  return [
+    date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+    date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+  ];
+}
 
 // Both languages, one shown at a time by the ไทย/EN switch.
 export const T = ([th, en], { thHtml = false, enHtml = false } = {}) =>
@@ -67,6 +93,11 @@ const ICON_PATHS = {
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
   focus: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/>',
+  pointer: '<path d="M9 4v10.5l2.6-2.4 2.1 4.6 2.2-1-2.1-4.5H17Z"/><path d="M4 4h2M4 8h2M4 12h2"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/>',
+  pdf: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/>',
 };
 export const icon = (name, size = 14) =>
   `<svg aria-hidden="true" focusable="false" class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
@@ -178,6 +209,25 @@ export function renderBlocks(nodes, ctx) {
     else if (n.type === 'deflist') out.push(srcWrap(ctx, n, renderDeflist(n, ctx)));
     else if (n.type === 'fence') {
       if (n.lang === 'output') throw new LectureError(ctxFile(), n.line, '```output must come right after a code block');
+      if (n.lang === 'prompt' && n.attrs.attach) throw new LectureError(ctxFile(), n.line, '```prompt {attach} must come right after a code block (and its ```output)');
+      if (n.lang === 'dataframe' || n.lang === 'prompt') {
+        const bctx = { ...ctx, file: ctxFile() };
+        out.push(srcWrap(ctx, n, n.lang === 'dataframe' ? renderDataframe(n, bctx) : renderPrompt(n, bctx)));
+        continue;
+      }
+      if (n.lang === 'cards') {
+        out.push(srcWrap(ctx, n, renderCards(n, { ...ctx, file: ctxFile() })));
+        continue;
+      }
+      if (n.lang === 'index-explorer') {
+        out.push(srcWrap(ctx, n, renderIndexExplorer(n, { ...ctx, file: ctxFile() })));
+        continue;
+      }
+      if (n.lang === 'figure') {
+        ctx.file = ctxFile();
+        out.push(srcWrap(ctx, n, renderFigure(n, ctx)));
+        continue;
+      }
       if (CODE_LANGS_SPECIAL.has(n.lang)) {
         out.push(srcWrap(ctx, n, renderLaterBlock(n.lang)));
         continue;
@@ -187,10 +237,28 @@ export function renderBlocks(nodes, ctx) {
       let stepOutputs = null;
       if (nodes[i + 1]?.type === 'fence' && nodes[i + 1].lang === 'output') output = nodes[++i];
       if (nodes[i + 1]?.type === 'container' && nodes[i + 1].name === 'step-outputs') stepOutputs = nodes[++i];
-      out.push(srcWrap(ctx, n, renderCode(n, output, stepOutputs, ctx), (stepOutputs ?? output ?? n).end));
+      // ...and by a ```prompt {attach}: the prompt that writes this code, behind a Prompt button
+      let prompt = null;
+      if (nodes[i + 1]?.type === 'fence' && nodes[i + 1].lang === 'prompt' && nodes[i + 1].attrs.attach) prompt = nodes[++i];
+      out.push(srcWrap(ctx, n, renderCode(n, output, stepOutputs, ctx, prompt), (prompt ?? stepOutputs ?? output ?? n).end));
+    } else if (n.type === 'container' && n.name === 'focus' && n.attrs.page === 'false') {
+      // ::: focus {page=false}: a projector-only frame, not shown in page view or the PDF
     } else if (n.type === 'container') out.push(['th', 'en'].includes(n.name) ? renderContainer(n, ctx) : srcWrap(ctx, n, renderContainer(n, ctx)));
   }
   return out.join('\n');
+}
+
+// ::: columns: the first block (a code cell keeps its ```output, ::: step-outputs and ```prompt {attach}) goes left,
+// everything after it goes right.
+export function splitColumns(children) {
+  let k = children.length ? 1 : 0;
+  const first = children[0];
+  if (first?.type === 'fence' && !['output'].includes(first.lang)) {
+    if (children[k]?.type === 'fence' && children[k].lang === 'output') k++;
+    if (children[k]?.type === 'container' && children[k].name === 'step-outputs') k++;
+    if (children[k]?.type === 'fence' && children[k].lang === 'prompt' && children[k].attrs.attach) k++;
+  }
+  return [children.slice(0, k), children.slice(k)];
 }
 
 function renderContainer(n, ctx) {
@@ -198,6 +266,11 @@ function renderContainer(n, ctx) {
     case 'th':
     case 'en':
       return `<div data-only="${n.name}" lang="${n.name}">${renderBlocks(n.children, ctx)}</div>`;
+    case 'columns': {
+      // side by side on desktop: the first block on the left, everything else on the right
+      const [main, side] = splitColumns(n.children);
+      return `<div class="cols${n.attrs.split === 'even' ? ' cols-even' : ''}"><div class="col-main">${renderBlocks(main, ctx)}</div><div class="col-side">${renderBlocks(side, ctx)}</div></div>`;
+    }
     case 'concept':
       return `<div class="kind kind-concept">${tag('concept')}${renderBlocks(n.children, ctx)}</div>`;
     case 'example':
@@ -212,9 +285,14 @@ function renderContainer(n, ctx) {
       return `<div class="display">${renderFocusContent(n, ctx)}</div>`;
     case 'answer':
       return renderAnswer(n, ctx);
-    case 'steps':
-      // projector-only: focus mode shows these one step at a time (focus.mjs)
-      return '';
+    case 'steps': {
+      // A plain list also shows in page view. A morphing stage ("a → b", prompts, notes)
+      // repeats the example above it, so it is projector-only (focus.mjs).
+      const items = n.lines.map((l) => l.match(/^\s*\d+[.)]\s+(.*)$/)).filter(Boolean).map((m) => splitTrailingAttrs(m[1]));
+      const morph = items.some(([text, a]) => text.includes('→') || a.prompt_th || a.prompt_en || a.note_th || a.note_en);
+      if (morph) return '';
+      return `<ol class="steps-list">${items.map(([text, a]) => `<li>${inline(text)}${a.th ? `<span class="cell-sub" data-only="th">${inline(a.th)}</span>` : ''}</li>`).join('')}</ol>`;
+    }
     case 'transform':
       return renderTransform(n, { ...ctx, file: ctxFile(), renderBlocks: (nodes) => renderBlocks(nodes, ctx) });
     case 'summary':
@@ -390,7 +468,7 @@ export function notebookJson(cells) {
   );
 }
 
-function renderCode(n, output, stepOutputs, ctx) {
+function renderCode(n, output, stepOutputs, ctx, prompt = null) {
   const env = ctx.env;
   const isPython = ['python', 'py', 'python3'].includes(n.lang);
   const cell = ++ctx.cellCount;
@@ -413,7 +491,7 @@ function renderCode(n, output, stepOutputs, ctx) {
   }
 
   const file = n.attrs.file;
-  const base = file ? file.replace(/\.[^.]+$/, '') : `week${ctx.weekPad}_cell${cell}`;
+  const base = file ? file.replace(/\.[^.]+$/, '') : `lesson${ctx.lessonPad}_cell${cell}`;
   const copyId = ctx.addFile({ text: copyText });
   let downloadBtn = '';
   if (isPython && env === 'colab') {
@@ -435,7 +513,8 @@ function renderCode(n, output, stepOutputs, ctx) {
   let out = '';
   if (output) {
     const run = env === 'vscode' && isPython ? `<span class="out-cmd">$ python ${esc(file ?? `${base}.py`)}</span>\n` : '';
-    out = `<div class="code-out"><span class="out-label" lang="en">Out</span><pre>${run}${esc(output.text.replace(/\s+$/, ''))}</pre></div>`;
+    const body = output.attrs.table ? outputTable(output.text, output.attrs.table) : `<pre>${run}${esc(output.text.replace(/\s+$/, ''))}</pre>`;
+    out = `<div class="code-out${output.attrs.error ? ' is-error' : ''}"><span class="out-label" lang="en">${output.attrs.error ? 'Error' : 'Out'}</span><div class="out-body">${body}</div></div>`;
   }
 
   // focus-mode step-through data (milestone 2)
@@ -451,10 +530,32 @@ function renderCode(n, output, stepOutputs, ctx) {
     stepOut = ` data-step-outputs="${esc(JSON.stringify(map))}"`;
   }
 
+  let promptBtn = '';
+  let promptPanel = '';
+  const codeHtml = `<pre class="code" tabindex="0"><code>${linesHtml}</code></pre>`;
+  if (prompt) {
+    // ```prompt {attach}: behind a Prompt button; {attach open} starts opened
+    const id = `cell${cell}-prompt`;
+    const open = Boolean(prompt.attrs.open);
+    promptBtn = `<button type="button" class="btn btn-light btn-prompt" aria-expanded="${open}" aria-controls="${id}">${icon('chat', 14)}<span lang="en">Prompt</span></button>`;
+    promptPanel = `<div class="code-prompt" id="${id}"${open ? '' : ' hidden'}>${renderPrompt(prompt, { ...ctx, file: ctxFile() })}</div>`;
+  }
+
   return `${pre}<figure class="code-cell" data-env="${env}"${stepAttr}${stepOut}>
-<figcaption class="code-head"><span class="code-tag">${icon('code')}${T(UI.code)}</span>${label}<span class="code-actions"><button type="button" class="btn btn-light" data-copy="${copyId}">${icon('copy')}${T(UI.copy)}</button>${downloadBtn}</span></figcaption>
-<pre class="code" tabindex="0"><code>${linesHtml}</code></pre>${out}
+<figcaption class="code-head"><span class="code-tag">${icon('code')}${T(UI.code)}</span>${label}<span class="code-actions">${promptBtn}<button type="button" class="btn btn-light" data-copy="${copyId}">${icon('copy')}${T(UI.copy)}</button>${downloadBtn}</span></figcaption>
+${promptPanel}${codeHtml}${out}
 </figure>`;
+}
+
+// A DataFrame result written by scripts/outputs.py: CSV whose first column is the index.
+export function outputTable(text, note) {
+  const { header, rows } = parseCsv(text);
+  const head = `<tr>${header.map((h, j) => `<th scope="col"${j === 0 ? ' class="df-index"' : ''}>${esc(h)}</th>`).join('')}</tr>`;
+  const isNum = (v) => /^-?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(v);
+  const body = rows
+    .map((r) => `<tr>${r.map((c, j) => (j === 0 ? `<th scope="row" class="df-index">${esc(c)}</th>` : `<td class="${isNum(c) ? 'df-num' : ''}${c === '' ? ' df-nan' : ''}">${esc(c === '' ? 'NaN' : c)}</td>`)).join('')}</tr>`)
+    .join('');
+  return `<div class="table-scroll"><table class="df-table out-table"><thead>${head}</thead><tbody>${body}</tbody></table></div><p class="out-shape" lang="en">${esc(note)}</p>`;
 }
 
 function renderLaterBlock(kind) {

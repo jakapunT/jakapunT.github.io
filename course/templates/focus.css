@@ -35,7 +35,7 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx-code-tag code { background: none; }
 
 .fx-body { display: flex; flex-direction: column; align-items: center; gap: calc(24 * var(--u)); min-height: 0; }
-.fx-frame code:not(.tf-code) { font-size: .9em; }
+.fx-frame code:not(.tf-code, .ixp code) { font-size: .9em; }
 
 /* ---------- big objects: strings, chips, display text ---------- */
 .fx-display, .fx-string { margin: 0; font-size: calc(90 * var(--u)); line-height: 1.4; font-weight: 500; text-align: center; }
@@ -78,6 +78,21 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx-answer-card { min-width: calc(300 * var(--u)); padding: calc(18 * var(--u)) calc(28 * var(--u)); border: calc(2 * var(--u)) solid var(--tag-exercise-border); border-radius: calc(14 * var(--u)); display: flex; flex-direction: column; }
 .fx-answer-term { font-size: calc(48 * var(--u)); font-weight: 500; line-height: 1.4; }
 .fx-answer-meaning { font-size: max(16px, calc(26 * var(--u))); color: var(--ink-2); }
+/* a predict-the-result exercise with a table (L10-S16): the table across the top, the code
+   bottom left, the answers revealed bottom right, so nothing moves when they appear */
+.fx-reveal:has(.df) { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: calc(18 * var(--u)) calc(28 * var(--u)); align-items: start; align-self: stretch; }
+.fx-reveal:has(.df) > .fx-step:first-child, .fx-reveal:has(.df) > .fx-step:first-child > .fx-blocks, .fx-reveal:has(.df) .src-node { display: contents; }
+.fx-reveal:has(.df) .df { grid-column: 1 / -1; }
+.fx-reveal:has(.df) .df-head, .fx-reveal:has(.df) .df-shape, .fx-reveal:has(.df) .code-head { display: none; }
+.fx-reveal:has(.df) .table-scroll .df-table { font-size: max(14px, calc(15 * var(--u))); }
+.fx-reveal:has(.df) .table-scroll .df-table th, .fx-reveal:has(.df) .table-scroll .df-table td { padding: calc(3 * var(--u)) calc(12 * var(--u)); }
+.fx-reveal:has(.df) .df-scroll { max-height: none; }
+.fx-reveal:has(.df) .code-cell { margin: 0; }
+.fx-reveal:has(.df) pre.code { font-size: max(16px, calc(19 * var(--u))); padding: calc(16 * var(--u)) calc(20 * var(--u)); }
+.fx-reveal:has(.df) .fx-answers { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: calc(10 * var(--u)); }
+.fx-reveal:has(.df) .fx-answer-card { min-width: 0; padding: calc(8 * var(--u)) calc(16 * var(--u)); text-align: left; }
+.fx-reveal:has(.df) .fx-answer-term { font-size: max(16px, calc(24 * var(--u))); }
+.fx-reveal:has(.df) .fx-answer-meaning { font-size: max(16px, calc(17 * var(--u))); line-height: 1.45; }
 
 /* ---------- code step-through ---------- */
 .fx-code {
@@ -115,13 +130,16 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx-terms { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: calc(18 * var(--u)) calc(28 * var(--u)); }
 .fx-terms li { padding: calc(8 * var(--u)) calc(26 * var(--u)); border-radius: calc(12 * var(--u)); background: var(--cream); font-size: calc(44 * var(--u)); font-weight: 500; }
 .fx-blocks { font-size: calc(36 * var(--u)); text-align: center; }
+.fx-blocks .code-cell, .fx-blocks .df { text-align: left; }
 
 /* ---------- transform ---------- */
 .fx .transform { align-self: stretch; }
-.fx .tf-table { font-size: max(16px, calc(24 * var(--u))); }
+.fx .tf-table { font-size: max(16px, calc(20 * var(--u))); }
 .fx .tf-code { font-size: max(16px, calc(24 * var(--u))) !important; }
 .fx .tf-arrow, .fx .tf-caption { font-size: max(16px, calc(17 * var(--u))); }
-.fx .table-scroll .tf-table th, .fx .table-scroll .tf-table td { padding: calc(10 * var(--u)) calc(18 * var(--u)); }
+.fx .table-scroll .tf-table th, .fx .table-scroll .tf-table td { padding: calc(5 * var(--u)) calc(14 * var(--u)); }
+.fx .tf-code { padding: calc(4 * var(--u)) calc(14 * var(--u)) !important; }
+.fx .transform { gap: calc(12 * var(--u)); }
 
 /* ---------- bottom bar ---------- */
 .fx-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: calc(16 * var(--u)); }
@@ -156,3 +174,74 @@ html.fx-on, html.fx-on body { overflow: hidden; }
   .fx-codegrid { grid-template-columns: minmax(0, 1fr); align-content: center; }
   .fx-top { font-size: 14px; letter-spacing: 0; }
 }
+
+/* page blocks inside frames */
+.fx .df, .fx .prompt-card { align-self: stretch; }
+.fx .table-scroll .df-table { font-size: max(16px, calc(19 * var(--u))); }
+.fx .df-scroll { max-height: calc(430 * var(--u)); }
+.fx .prompt-text { font-size: max(16px, calc(22 * var(--u))); }
+.fx-codegrid.fx-code-long { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+.fx-codegrid.fx-code-long .fx-code { font-size: max(16px, calc(19 * var(--u))); }
+.fx-codegrid.fx-code-xlong { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr); }
+.fx-codegrid.fx-code-xlong .fx-code { font-size: max(16px, calc(16 * var(--u))); }
+
+/* figures: fit the frame height, keep the caption short */
+.fx .fig { align-self: center; gap: calc(8 * var(--u)); }
+.fx .fig-media { padding: calc(10 * var(--u)); border: 0; }
+.fx .diagram { width: auto; height: calc(400 * var(--u)); max-width: 100%; min-width: 0; }
+.fx .fig-media img { max-height: calc(400 * var(--u)); width: auto; }
+.fx .fig-caption { font-size: max(16px, calc(18 * var(--u))); text-align: center; }
+
+/* ::: columns frames */
+.fx-cols { align-self: stretch; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: calc(40 * var(--u)); align-items: center; }
+.fx-col { min-width: 0; display: flex; flex-direction: column; gap: calc(16 * var(--u)); }
+.fx-col .code-cell, .fx-col .df, .fx-col .prompt-card, .fx-col .fig { margin: 0; }
+.fx-col pre.code-plain, .fx-col .fx-code { font-size: max(16px, calc(20 * var(--u))); }
+.fx-points { margin: 0; padding: 0; list-style: none; counter-reset: pt; display: flex; flex-direction: column; gap: calc(10 * var(--u)); font-size: max(16px, calc(22 * var(--u))); line-height: 1.35; }
+.fx-points > li { position: relative; padding-left: calc(48 * var(--u)); }
+ol.fx-points > li { counter-increment: pt; }
+ol.fx-points > li::before {
+  content: counter(pt); position: absolute; left: 0; top: calc(2 * var(--u));
+  width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: 50%;
+  background: var(--accent); color: var(--card); font: 700 calc(18 * var(--u))/calc(34 * var(--u)) var(--font-head); text-align: center;
+}
+ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var(--u)); top: calc(16 * var(--u)); width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--accent); }
+.fx-points em { display: block; font-style: normal; font-size: .72em; color: var(--muted); }
+.fx-col .diagram { height: calc(380 * var(--u)); }
+.fx-cols-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.fx-mini-out { border: 1px solid var(--card-border); border-radius: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(16 * var(--u)); }
+.fx-mini-out pre { margin: 0; font: max(16px, calc(18 * var(--u)))/1.5 var(--font-code); white-space: pre; overflow-x: auto; }
+.fx-mini-out .table-scroll .df-table { font-size: max(16px, calc(17 * var(--u))); }
+.fx-mini-out .out-shape { font-size: max(14px, calc(14 * var(--u))); }
+
+/* ```index-explorer: the page widget, scaled up for the projector */
+.fx .ixp { --ix: max(1px, calc(1.15 * var(--u))); align-self: center; }
+.fx .ixp-table button { min-height: 0; padding-top: calc(4 * var(--ix)); padding-bottom: calc(4 * var(--ix)); }
+.fx .ixp-hint { display: none; }
+
+/* ```cards: four across on the projector */
+.fx .pc-grid { --k: max(0.8px, calc(0.98 * var(--u))); grid-template-columns: repeat(4, minmax(0, 1fr)); align-self: stretch; text-align: left; }
+.fx .pc-grid { gap: calc(14 * var(--k)); }
+.fx .pc-card { padding: calc(14 * var(--k)) calc(14 * var(--k)) calc(12 * var(--k)); }
+.fx .pc-vis { gap: calc(8 * var(--k)); padding: calc(8 * var(--k)); }
+.fx .pc-col { min-width: 0; font-size: calc(13 * var(--k)); }
+.fx .pc-col th, .fx .pc-col td { padding: calc(4 * var(--k)) calc(7 * var(--k)); }
+.fx .pc-arrow { font-size: calc(18 * var(--k)); }
+.fx .pc-result { flex: 1 1 0; min-width: 0; max-width: none; padding: calc(6 * var(--k)) calc(8 * var(--k)); font-size: calc(15 * var(--k)); }
+.fx .pc-grid:has(> :nth-child(5)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ::: transform {right=...} (merge): inputs stacked on the left → result on the right */
+.fx .tf-merge { display: grid; grid-template-columns: auto auto auto; grid-template-areas: "code code code" "in down out" "cap cap cap"; align-items: center; justify-content: center; column-gap: calc(24 * var(--u)); row-gap: calc(14 * var(--u)); }
+.fx .tf-merge > .tf-code { grid-area: code; justify-self: start; }
+.fx .tf-merge > .tf-in { grid-area: in; flex-direction: column; flex-wrap: nowrap; gap: calc(4 * var(--u)); }
+.fx .tf-merge > .tf-down { grid-area: down; flex-direction: column; max-width: calc(120 * var(--u)); text-align: center; }
+.fx .tf-merge > .tf-down svg { transform: rotate(-90deg); }
+.fx .tf-merge > .tf-box { grid-area: out; }
+.fx .tf-merge > .tf-caption { grid-area: cap; }
+.fx .tf-merge .tf-table { font-size: max(14px, calc(17 * var(--u))) !important; }
+.fx .tf-merge .tf-table th, .fx .tf-merge .tf-table td { padding: calc(4 * var(--u)) calc(10 * var(--u)) !important; }
+.fx .tf-merge .tf-plus { font-size: calc(28 * var(--u)); line-height: 1; }
+.fx .tf-merge .tf-label { font-size: max(14px, calc(15 * var(--u))); }
+.fx .pc-vis-venn { padding: calc(6 * var(--k)); }
+.fx .pc-vis-venn .pc-col th, .fx .pc-vis-venn .pc-col td { font-size: calc(11 * var(--k)); padding: calc(3 * var(--k)) calc(5 * var(--k)); height: auto; }
+.fx .venn { width: calc(120 * var(--k)); }
