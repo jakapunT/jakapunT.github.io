@@ -17,7 +17,7 @@ const publications = [
 ];
 const current = [['Thanawat Traipat','LangTech BA student'],['Kawinna Boontos','Linguistics MA student']];
 const alumni = [
-  ['Chinjuta Sa-Ngasaeng','LangTech BA',''],['Thanete Wutiwan','LangTech BA',''],['Jirapach Rungruengsrisang','LangTech BA',''],['Phurichaya Hongsuparuk','LangTech BA',''],['Benyapa Phlaiduang','LangTech BA',''],
+  ['Chinjuta Sa-Ngasaeng','LangTech BA · 2025',''],['Thanete Wutiwan','LangTech BA · 2025',''],['Jirapach Rungruengsrisang','LangTech BA · 2025',''],['Phurichaya Hongsuparuk','LangTech BA · 2025',''],['Benyapa Phlaiduang','LangTech BA · 2025',''],
   ['Nanthipat Kongborrirak','LangTech BA · 2024','Assessment of a Large Language Model’s Reading and Comprehension Proficiency in the Thai Language'],
   ['Tayawat Songcharoensuk','ComSci, KMITL · 2024','Developing Aspect-Based Sentiment Analysis Methods Through Prompt Engineering'],['Witchaya Panpradit','ComSci, KMITL · 2024','Developing Aspect-Based Sentiment Analysis Methods Through Prompt Engineering'],
   ['Chonnasat Gunngam','ComSci, KMITL · 2024','Evaluating Techniques and Methods for Text-to-Image Generation'],['Chaichan Sampaosong','ComSci, KMITL · 2024','Evaluating Techniques and Methods for Text-to-Image Generation'],
