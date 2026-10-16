@@ -5,6 +5,8 @@ export type Course = {
   description: string[];
   progression: string;
   topics: { title: string; items: string[] }[];
+  /** Password-protected lecture pages built by course/ and published under public/courses/. */
+  materials?: { href: string; term: string; language: string };
 };
 
 export const courses: Course[] = [
@@ -19,6 +21,7 @@ export const courses: Course[] = [
       'Laboratory activities and assignments emphasize breaking problems into computational steps, translating those steps into code, testing solutions, and using programming to investigate language data. The course also introduces how processed text later supports embeddings, recurrent neural networks, and Transformers.',
     ],
     progression: 'From “I have never programmed before” to “I can use Python to solve problems involving language and text.”',
+    materials: { href: 'courses/nlp-basic/index.html', term: 'Fall 2026', language: 'Thai' },
     topics: [
       { title: 'Introduction to Programming', items: ['How computers execute instructions', 'Programming languages versus natural languages', 'Python interpreters and development environments', '.py programs and Jupyter notebooks'] },
       { title: 'Python Fundamentals', items: ['Program structure and sequential execution', 'Variables and expressions', 'Functions and modules', 'Reusable code and basic program organisation'] },

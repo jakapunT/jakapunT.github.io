@@ -78,10 +78,13 @@ export function parseLecture(source, file) {
     if (!/^w\d{2}-s\d{2}$/.test(s.id)) throw new LectureError(file, s.line, `section ID "${s.id}" must look like w05-s01`);
     if (seen.has(s.id)) throw new LectureError(file, s.line, `section ID "${s.id}" is already used on line ${seen.get(s.id)}`);
     seen.set(s.id, s.line);
+    s.end = [...s.lines].reverse().find((l) => l.text.trim())?.n ?? s.line;
     s.blocks = parseBlocks(s.lines, file);
     delete s.lines;
   }
-  return { meta, sections };
+  // 1-based line range of the front matter, including both --- lines
+  const frontMatter = bodyStart > 0 ? { line: 1, end: bodyStart } : null;
+  return { meta, sections, frontMatter };
 }
 
 // lines: [{ text, n }] → nodes
@@ -89,7 +92,8 @@ export function parseBlocks(lines, file) {
   const nodes = [];
   let md = [];
   const flushMd = () => {
-    if (md.some((l) => l.text.trim())) nodes.push({ type: 'md', text: md.map((l) => l.text).join('\n'), line: md[0].n });
+    const filled = md.filter((l) => l.text.trim());
+    if (filled.length) nodes.push({ type: 'md', text: md.map((l) => l.text).join('\n'), line: filled[0].n, end: filled[filled.length - 1].n });
     md = [];
   };
 
@@ -111,7 +115,7 @@ export function parseBlocks(lines, file) {
       }
       if (j >= lines.length) throw new LectureError(file, n, 'code block is never closed');
       const [, attrs] = splitTrailingAttrs(`x ${f[4]}`);
-      nodes.push({ type: 'fence', lang: f[3] || '', attrs, text: dedent(body).join('\n'), line: n });
+      nodes.push({ type: 'fence', lang: f[3] || '', attrs, text: dedent(body).join('\n'), line: n, end: lines[j].n });
       i = j + 1;
       continue;
     }
@@ -140,6 +144,7 @@ export function parseBlocks(lines, file) {
         lines: inner.map((l) => l.text),
         children: parseBlocks(dedentLines(inner), file),
         line: n,
+        end: lines[j].n,
       });
       i = j + 1;
       continue;
@@ -150,6 +155,7 @@ export function parseBlocks(lines, file) {
     if (t && !/^[|#>`:\-*\d]/.test(t) && lines[i + 1] && /^:\s/.test(lines[i + 1].text)) {
       flushMd();
       const items = [];
+      let last = n;
       while (i < lines.length) {
         const term = lines[i]?.text.trim();
         if (!term || !lines[i + 1] || !/^:\s/.test(lines[i + 1].text)) break;
@@ -170,11 +176,12 @@ export function parseBlocks(lines, file) {
             break;
           }
           item.defs.push(parseBlocks(def, file));
+          last = [...def].reverse().find((d) => d.text.trim())?.n ?? last;
         }
         items.push(item);
         while (i < lines.length && !lines[i].text.trim()) i++;
       }
-      nodes.push({ type: 'deflist', items, line: items[0].line });
+      nodes.push({ type: 'deflist', items, line: items[0].line, end: last });
       continue;
     }
 
@@ -191,6 +198,7 @@ export function parseBlocks(lines, file) {
         align: splitRow(sep).map((c) => (/^:-+:$/.test(c) ? 'center' : /-+:$/.test(c) ? 'right' : null)),
         rows: body.map(splitRow),
         line: n,
+        end: lines[j - 1].n,
       });
       i = j;
       continue;

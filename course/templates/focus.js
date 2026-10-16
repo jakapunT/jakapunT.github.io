@@ -96,10 +96,10 @@
     return (best || arts[0] || {}).id;
   }
 
-  function open() {
+  function open(sectionId) {
     if (!deck.hidden) return;
     opener = document.activeElement;
-    var id = currentSection();
+    var id = sectionId || currentSection();
     fi = 0;
     for (var i = 0; i < frames.length; i++) {
       if (frames[i].getAttribute('data-section') === id) { fi = i; break; }
@@ -153,6 +153,8 @@
   });
 
   document.addEventListener('click', function (e) {
+    var jump = e.target.closest('[data-fx-open]');
+    if (jump) { open(jump.getAttribute('data-fx-open')); return; }
     var b = e.target.closest('[data-fx]');
     if (b) {
       var a = b.getAttribute('data-fx');

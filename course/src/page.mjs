@@ -19,7 +19,9 @@ const LANG_INIT = `(function(){var l='th';try{var s=localStorage.getItem('course
 const jsonForScript = (obj) =>
   JSON.stringify(obj).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-export function pageHtml({ course, meta, weekPad, sectionsHtml, toc, sectionCount, weekNav, files, dev, focusDeck = '' }) {
+export function pageHtml({ course, meta, weekPad, sectionsHtml, toc, sectionCount, weekNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null }) {
+  // dev preview only: where the in-page editor saves to
+  const editable = dev && srcFile;
   const fontsUrl = '../_fonts/';
   const week = Number(meta.week);
   const title = `W${weekPad} · ${meta.title} · ${course.title}`;
@@ -52,6 +54,7 @@ ${fontFaceCss(fontsUrl)}
 ${tokensCss()}
 ${read('templates/page.css')}
 ${focusDeck ? read('templates/focus.css') : ''}
+${editable ? read('templates/dev-edit.css') : ''}
 </style>
 </head>
 <body>
@@ -67,7 +70,7 @@ ${focusDeck ? `<button type="button" class="btn btn-dark btn-focus" data-fx="ope
 </div>
 </div>
 </header>
-<div class="banner">
+<div class="banner"${editable && frontMatter ? ` data-src="${frontMatter.line}-${frontMatter.end}"` : ''}>
 <div class="wrap banner-inner">
 <ul class="pills">${pills.join('')}</ul>
 <h1 lang="en">${esc(meta.title)}</h1>
@@ -77,7 +80,7 @@ ${meta.title_th ? `<p class="banner-sub" data-only="th">${esc(meta.title_th)}</p
 </div>
 <div class="wrap layout">
 ${toc}
-<main id="main" tabindex="-1">
+<main id="main" tabindex="-1"${editable ? ` data-src-file="${esc(srcFile)}"` : ''}>
 ${sectionsHtml}
 ${weekNav}
 </main>
@@ -89,7 +92,7 @@ ${focusDeck}
 ${read('templates/page.js')}
 ${focusDeck ? read('templates/focus.js') : ''}
 </script>
-${dev ? `<script>new EventSource('/__reload').onmessage=function(){location.reload()}</script>` : ''}
+${editable ? `<script>${read('templates/dev-edit.js')}</script>` : dev ? `<script>new EventSource('/__reload').onmessage=function(e){if(e.data==='reload')location.reload()}</script>` : ''}
 </body>
 </html>
 `;
