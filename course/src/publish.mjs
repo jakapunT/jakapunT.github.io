@@ -4,7 +4,13 @@
 // StatiCrypt through its STATICRYPT_PASSWORD environment variable and is never printed or
 // written anywhere else.
 //
+// Only released lessons are published (release date <= today in Bangkok, see release.mjs). The
+// shared password would unlock any page that is online, so an unreleased lesson is not uploaded
+// at all, and a page already published for it is removed.
+//
 //   --out <dir>   write somewhere other than ../public/courses (used for testing)
+//   --all         publish every lesson, released or not (testing only)
+//   COURSE_TODAY=YYYY-MM-DD   pretend today is another date (testing)
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,6 +22,7 @@ import { buildCourse } from './build.mjs';
 import { COURSE_DIR } from './page.mjs';
 import { copyFonts, fontFaceCss } from './fonts.mjs';
 import { LectureError } from './parse.mjs';
+import { todayBangkok } from './release.mjs';
 
 const require = createRequire(import.meta.url);
 const SALTS_FILE = path.join(COURSE_DIR, 'staticrypt-salts.json');
@@ -52,10 +59,11 @@ async function main() {
   const args = process.argv.slice(2);
   const outIdx = args.indexOf('--out');
   const outRoot = outIdx >= 0 ? path.resolve(args[outIdx + 1]) : path.resolve(COURSE_DIR, '..', 'public', 'courses');
+  const all = args.includes('--all');
   const slug = args.filter((a, i) => !a.startsWith('--') && !(outIdx >= 0 && i === outIdx + 1))[0];
   if (!slug) fail('Usage: npm run publish -- <course>   (for example: npm run publish -- nlp-basic)');
 
-  const { course, pages } = await buildCourse(slug);
+  const { course, pages, skipped } = await buildCourse(slug, { released: !all });
   const varName = course.password_env ?? `COURSE_PASSWORD_${slug.toUpperCase().replace(/-/g, '_')}`;
   const password = process.env[varName] ?? readDotEnv()[varName];
   if (!password) fail(`No password: set ${varName}=... in course/.env (copy .env.example to .env).`);
@@ -119,17 +127,22 @@ async function main() {
     }
     for (const p of pages) fs.copyFileSync(path.join(encDir, p.name), path.join(outDir, p.name));
 
-    // remove pages whose source was deleted or renamed
+    // remove pages of lessons not released yet, and pages whose source was deleted or renamed
     const keep = new Set(pages.map((p) => p.name));
+    const notYet = new Set(skipped.map((s) => s.name));
     for (const f of fs.readdirSync(outDir)) {
       if (f.endsWith('.html') && !keep.has(f)) {
         fs.rmSync(path.join(outDir, f));
-        console.log(`removed ${path.relative(process.cwd(), path.join(outDir, f))} (no source any more)`);
+        console.log(`removed ${path.relative(process.cwd(), path.join(outDir, f))} (${notYet.has(f) ? 'not released yet' : 'no source any more'})`);
       }
     }
     copyFonts(outRoot);
-    console.log(`✓ encrypted ${pages.length} page(s) → ${path.relative(process.cwd(), outDir)}/`);
+    console.log(`✓ encrypted ${pages.length} page(s) → ${path.relative(process.cwd(), outDir)}/${all ? '   (--all: unreleased lessons included)' : ''}`);
     for (const p of pages) console.log(`  ${p.name}`);
+    if (skipped.length) {
+      console.log(`not released yet, so not published (today is ${todayBangkok()} in Bangkok):`);
+      for (const s of skipped) console.log(`  ${s.name}  opens ${s.release}`);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

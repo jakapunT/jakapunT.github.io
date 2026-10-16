@@ -56,7 +56,7 @@ Course slug for the first course: `nlp-basic` ("Basic Programming for NLP").
 |---|---|
 | `npm run dev` | Build unencrypted into `.preview/`, serve on localhost, rebuild + reload on save |
 | `npm run build` | Build unencrypted HTML into `.preview/` once |
-| `npm run publish -- <course>` | Build, encrypt with the password from `.env`, write to `../public/courses/<course>/` |
+| `npm run publish -- <course>` | Build, encrypt with the password from `.env`, write to `../public/courses/<course>/`. Only released lessons (see Release dates); `--all` publishes every lesson (testing only) |
 | `npm run check` | The guard (section 9) on demand |
 | `npm run outputs -- <course> <lesson>` | Run a lesson's Python cells with `course/.venv` (Colab's pandas, 2.2.x) and write the real results into its ```output blocks |
 
@@ -122,6 +122,24 @@ calendar changes every year. The year's calendar lives only in `course.yml` unde
 (`{ lesson: 10, week: 13, date: 2026-10-30 }`, plus `note:` entries for exams and holidays). The
 course home renders that schedule; a lesson page shows "บทที่ 10 จาก 13" and its date. Prev/next
 follow lesson numbers. Files are `lesson<NN>-<topic>.md`.
+
+### Release dates (added 2026-10, at the teacher's request)
+The teacher writes lessons ahead; each goes online a few days before its class (`src/release.mjs`).
+- Release date = the lesson's class `date` in `course.yml` `schedule:` minus
+  `release_days_before` (a `course.yml` setting, default 3). Front matter `release: YYYY-MM-DD`
+  overrides it for one lesson. A lesson with no date counts as released.
+- `npm run publish` encrypts only lessons whose release date is today or earlier (Asia/Bangkok)
+  and **deletes** the published page of any lesson not released yet. Hiding a link is not enough:
+  the one course password unlocks every page that is online, so an unreleased page must not exist
+  in `public/`. It prints the skipped lessons with their release dates. `--all` ignores release
+  dates (testing only; never commit its output).
+- Published course home: an unreleased lesson shows its class date and "เปิดให้อ่าน <date> /
+  Opens <date>", with no link. Prev/next on lesson pages skip unreleased lessons.
+- Preview (`npm run dev` / `build`): every lesson is built and linked, and unreleased ones carry a
+  "ยังไม่เผยแพร่ · เปิด <date>" badge on the course home and in the lesson banner.
+- `COURSE_TODAY=YYYY-MM-DD` pretends today is another date, for testing build and publish.
+- A lesson only goes online when someone runs publish → commit → push on the teacher's Mac (the
+  password is only there), so on release day publish must be run, by hand or by a scheduled job.
 
 ### Front matter
 ```yaml

@@ -1,5 +1,6 @@
 // Builds unencrypted lecture pages into .preview/ (npm run build). publish.mjs reuses buildCourse
-// and encrypts the result.
+// and encrypts the result. The preview holds every lesson (unreleased ones carry a badge); the
+// published build holds only released lessons (release.mjs).
 //
 //   node src/build.mjs            all courses
 //   node src/build.mjs nlp-basic  one course
@@ -14,6 +15,7 @@ import { initHighlighter } from './highlight.mjs';
 import { pageHtml, lessonNavHtml, COURSE_DIR } from './page.mjs';
 import { renderFocusDeck, focusDeckHtml } from './focus.mjs';
 import { copyFonts } from './fonts.mjs';
+import { releaseOf, todayBangkok } from './release.mjs';
 
 // COURSE_SOURCES lets tests build from another folder
 export const COURSES_DIR = process.env.COURSE_SOURCES ? path.resolve(process.env.COURSE_SOURCES) : path.join(COURSE_DIR, 'courses');
@@ -52,17 +54,25 @@ export function loadCourse(slug) {
   return { dir, course, lectures };
 }
 
-// Returns [{ name, html }] for one course. Throws LectureError on authoring mistakes.
-export async function buildCourse(slug, { dev = false } = {}) {
+// Returns { course, pages: [{ name, html }], skipped } for one course. Throws LectureError on
+// authoring mistakes.
+//   released: true  → build only lessons whose release date has come (publish); the rest are
+//                     returned in `skipped`, listed on the course home without a link, and
+//                     left out of prev / next
+//   released: false → build every lesson, with a "not published yet" badge on unreleased ones
+export async function buildCourse(slug, { dev = false, released = false } = {}) {
   await initHighlighter();
   const { dir, course, lectures } = loadCourse(slug);
+  const today = todayBangkok();
+  for (const l of lectures) l.release = releaseOf(course, l, today);
+  const built = released ? lectures.filter((l) => l.release.released) : lectures;
   // prev / next follow the lesson numbers, not the calendar
   const navInfo = (l) => (l ? { slug: l.slug, lesson: Number(l.meta.lesson), title: l.meta.title, title_th: l.meta.title_th } : null);
 
   const pages = [];
-  for (const lec of lectures) {
+  for (const lec of built) {
     const meta = lec.meta;
-    const index = lectures.indexOf(lec);
+    const index = built.indexOf(lec);
     if (!meta.title) throw new LectureError(lec.rel, 1, 'front matter needs "title:"');
     const lessonPad = String(meta.lesson).padStart(2, '0');
     for (const s of lec.sections) {
@@ -109,8 +119,9 @@ export async function buildCourse(slug, { dev = false } = {}) {
       sectionsHtml,
       toc,
       sectionCount: lec.sections.length,
-      lessonNav: lessonNavHtml(navInfo(lectures[index - 1]), navInfo(lectures[index + 1])),
+      lessonNav: lessonNavHtml(navInfo(built[index - 1]), navInfo(built[index + 1])),
       scheduled: scheduleFor(course, meta.lesson),
+      release: lec.release,
       files,
       dev,
       focusDeck,
@@ -119,8 +130,9 @@ export async function buildCourse(slug, { dev = false } = {}) {
     });
     pages.push({ name: `${lec.slug}.html`, html, lecture: lec });
   }
-  pages.push({ name: 'index.html', html: courseHomeHtml(course, lectures, dev) });
-  return { course, pages };
+  pages.push({ name: 'index.html', html: courseHomeHtml(course, lectures, dev, released) });
+  const skipped = lectures.filter((l) => !built.includes(l)).map((l) => ({ name: `${l.slug}.html`, lesson: Number(l.meta.lesson), release: l.release.date }));
+  return { course, pages, skipped };
 }
 
 // This year's date for a lesson, from course.yml schedule (lesson pages never hard-code it).
@@ -128,8 +140,9 @@ export function scheduleFor(course, lesson) {
   return (course.schedule ?? []).find((e) => Number(e.lesson) === Number(lesson)) ?? null;
 }
 
-// Course home: this year's schedule from course.yml, linking the lessons that exist.
-function courseHomeHtml(course, lectures, dev) {
+// Course home: this year's schedule from course.yml, linking the lessons that exist. With
+// `released`, a lesson whose release date has not come shows that date instead of a link.
+function courseHomeHtml(course, lectures, dev, released) {
   const byLesson = new Map(lectures.map((l) => [Number(l.meta.lesson), l]));
   const entries = course.schedule?.length ? course.schedule : lectures.map((l) => ({ lesson: l.meta.lesson }));
   const items = entries
@@ -143,6 +156,11 @@ function courseHomeHtml(course, lectures, dev) {
       const title = l?.meta.title ?? e.title ?? '';
       const titleTh = l?.meta.title_th ?? e.title_th;
       const name = `<span class="sched-n">${T(UI.lesson(e.lesson))}</span><span class="sched-name"><span lang="en">${esc(title)}</span>${titleTh ? `<span class="cell-sub" data-only="th">${esc(titleTh)}</span>` : ''}</span>`;
+      if (l && !l.release.released) {
+        const opens = formatDate(l.release.date);
+        if (released) return `<li class="sched-row"><span class="sched-when">${when}</span><span class="sched-title">${name}<span class="sched-soon">${T(UI.opens(opens))}</span></span></li>`;
+        return `<li class="sched-row is-open"><span class="sched-when">${when}</span><a class="sched-title" href="${l.slug}.html">${name}<span class="badge-unreleased">${T(UI.unreleased(opens))}</span></a></li>`;
+      }
       return l
         ? `<li class="sched-row is-open"><span class="sched-when">${when}</span><a class="sched-title" href="${l.slug}.html">${name}</a></li>`
         : `<li class="sched-row"><span class="sched-when">${when}</span><span class="sched-title">${name}<span class="sched-soon">${T(UI.notYet)}</span></span></li>`;

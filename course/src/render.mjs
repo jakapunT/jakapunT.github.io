@@ -53,6 +53,9 @@ export const UI = {
   copy: ['คัดลอก', 'Copy'],
   week: (w) => [`สัปดาห์ที่ ${w}`, `Week ${w}`],
   notYet: ['ยังไม่เปิด', 'Not available yet'],
+  // release dates (release.mjs); d is formatDate()'s [th, en]
+  opens: ([th, en]) => [`เปิดให้อ่าน ${th}`, `Opens ${en}`],
+  unreleased: ([th, en]) => [`ยังไม่เผยแพร่ · เปิด ${th}`, `Not published yet · opens ${en}`],
   mode: {
     pairs: ['ทำเป็นคู่', 'In pairs'],
     solo: ['ทำคนเดียว', 'On your own'],

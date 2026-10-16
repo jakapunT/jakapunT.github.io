@@ -22,7 +22,7 @@ const jsonForScript = (obj) =>
 // Course pages live at /courses/<course>/ on jakapunt.github.io, so the main site is two levels up.
 const SITE = '../../';
 
-export function pageHtml({ course, meta, lessonPad, sectionsHtml, toc, sectionCount, lessonNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null, scheduled = null }) {
+export function pageHtml({ course, meta, lessonPad, sectionsHtml, toc, sectionCount, lessonNav, files, dev, focusDeck = '', srcFile = null, frontMatter = null, scheduled = null, release = null }) {
   // dev preview only: where the in-page editor saves to
   const editable = dev && srcFile;
   const isHome = !meta.lesson;
@@ -32,6 +32,8 @@ export function pageHtml({ course, meta, lessonPad, sectionsHtml, toc, sectionCo
   const totalLessons = course.lessons ?? (course.schedule ?? []).filter((e) => e.lesson != null).length;
 
   const pills = [`<li class="pill pill-accent">${T(UI.lessonOf(lesson, totalLessons || null))}</li>`, `<li class="pill">${T(UI.sections(sectionCount))}</li>`];
+  // preview only: published builds never contain an unreleased lesson
+  if (release && !release.released) pills.unshift(`<li class="pill badge-unreleased">${T(UI.unreleased(formatDate(release.date)))}</li>`);
   const date = formatDate(scheduled?.date);
   if (date) pills.push(`<li class="pill">${T(date)}</li>`);
   if (meta.lab) {
