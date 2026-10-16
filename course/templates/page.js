@@ -116,11 +116,6 @@
       );
       return;
     }
-    // Download PDF: the browser's print window, with the print layout from page.css
-    if (e.target.closest('[data-print]')) {
-      window.print();
-      return;
-    }
     // PDF as slides: print the focus-mode frames, one 16:9 page each (focus.css, @media print)
     if (e.target.closest('[data-print-slides]')) {
       printSlides();

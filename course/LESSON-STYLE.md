@@ -87,8 +87,8 @@ obvious, and use one of these:
 - Every frame must fit 1280×720 at projector size. Check each changed section in focus mode.
 - Use `::: focus {page=false}` for a projector-only frame (for example the table plus the code to
   predict), so the page does not repeat it.
-- Students can print the page (Download PDF) or the slides (PDF as slides: one 16:9 page per
-  frame, answers left out).
+- The only PDF students download is the slides (ดาวน์โหลด PDF (สไลด์): one 16:9 page per frame,
+  answers left out), so every frame should also read well on paper.
 
 ## Checklist for a new or changed section
 
