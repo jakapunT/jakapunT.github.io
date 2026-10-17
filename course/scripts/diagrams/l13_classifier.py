@@ -256,7 +256,7 @@ for i, (ok, l) in enumerate(zip(right, y_test)):
         s.add(f'<rect x="{x - 4}" y="48" width="{S2 + 8}" height="{S2 + 8}" rx="7" class="tr-miss"/>')
         miss_x = x + S2 / 2
 s.add(f'<path d="M{miss_x:g} 92 V112" class="pl-line"/>')
-s.both(miss_x, 134, "ผิด 1 ข้อ: ต้มยำไม่อร่อย ร้านสะอาด (ดู S06)", "1 wrong: ต้มยำไม่อร่อย ร้านสะอาด (see S06)", "wv-note", "middle")
+s.both(miss_x, 134, "ผิด 1 ข้อ: ต้มยำไม่อร่อย ร้านสะอาด", "1 wrong: ต้มยำไม่อร่อย ร้านสะอาด", "wv-note", "middle")
 s.both(20, 184, f"accuracy = ถูก {sum(right)} ÷ ทั้งหมด {len(right)} = {sum(right) / len(right):.0%}",
        f"accuracy = {sum(right)} right ÷ {len(right)} total = {sum(right) / len(right):.0%}", "tr-big")
 s.save("l13-test-result.svg", 200)

@@ -52,6 +52,9 @@ obvious, and use one of these:
 - Always individual: `mode="solo"` (ทำคนเดียว / On your own).
 - Self-contained: the question, the data and any rule are in the same card. Never "ตามกติกาใน
   L10-S25"; write the rule out.
+- This holds everywhere, not only in exercises: never point students to another section or lesson
+  ("L13-S06", "(บทที่ 12)", "ต้นบท", "see the chart in S05"). Show the data, chart, code or rule
+  again where it is needed, or say it in a few words.
 - Start with the goal (**โจทย์:** what we want and why), then short numbered steps.
 - Students predict by hand first, then use AI or run the code, then compare.
 - Answers are checked in pandas. In focus mode and the slide PDF, answers stay hidden.
