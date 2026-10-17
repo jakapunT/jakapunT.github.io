@@ -1,12 +1,15 @@
 // Renders a parsed lecture (see parse.mjs) into the page-view HTML body.
 
+import path from 'node:path';
 import MarkdownIt from 'markdown-it';
 import { LectureError, splitTrailingAttrs } from './parse.mjs';
 import { highlightLines } from './highlight.mjs';
 import { renderTransform, parseCsv } from './transform.mjs';
-import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards } from './blocks.mjs';
+import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards, imageTag, renderBpeExplorer } from './blocks.mjs';
+import { mathPlugin } from './math.mjs';
+import { renderInteractive, INTERACTIVE_LANGS } from './interactives.mjs';
 
-const md = new MarkdownIt({ html: true, linkify: true, typographer: false });
+const md = new MarkdownIt({ html: true, linkify: true, typographer: false }).use(mathPlugin);
 const defaultLinkOpen = md.renderer.rules.link_open ?? ((tokens, i, opts, env, self) => self.renderToken(tokens, i, opts));
 md.renderer.rules.link_open = (tokens, i, opts, env, self) => {
   const href = tokens[i].attrGet('href') ?? '';
@@ -222,8 +225,16 @@ export function renderBlocks(nodes, ctx) {
         out.push(srcWrap(ctx, n, renderCards(n, { ...ctx, file: ctxFile() })));
         continue;
       }
+      if (n.lang === 'bpe-explorer') {
+        out.push(srcWrap(ctx, n, renderBpeExplorer(n, { ...ctx, file: ctxFile() })));
+        continue;
+      }
       if (n.lang === 'index-explorer') {
         out.push(srcWrap(ctx, n, renderIndexExplorer(n, { ...ctx, file: ctxFile() })));
+        continue;
+      }
+      if (INTERACTIVE_LANGS.has(n.lang)) {
+        out.push(srcWrap(ctx, n, renderInteractive(n, { ...ctx, file: ctxFile() })));
         continue;
       }
       if (n.lang === 'figure') {
@@ -337,19 +348,40 @@ function renderExerciseBody(n, ctx) {
 function renderAnswer(n, ctx) {
   const id = `answer-${ctx.section?.id ?? 'x'}-${++answerSeq}`;
   // "- ตา | กลม: {th="..." en="..."}" items become answer cards
-  const items = n.lines.filter((l) => l.trim());
-  const parsed = items.map((l) => {
-    const m = l.match(/^\s*[-*]\s+(.*)$/);
-    if (!m) return null;
-    const [text, attrs] = splitTrailingAttrs(m[1]);
-    if (!attrs.th && !attrs.en) return null;
-    return { term: text.replace(/:\s*$/, ''), th: attrs.th ?? attrs.en, en: attrs.en ?? attrs.th };
-  });
-  const body = parsed.every(Boolean)
-    ? `<ul class="answer-grid">${parsed
-        .map((p) => `<li class="answer-card"><span class="answer-term">${inline(p.term)}</span><span class="answer-meaning">${T([inline(p.th), inline(p.en)], { thHtml: true, enHtml: true })}</span></li>`)
-        .join('')}</ul>`
-    : renderBlocks(n.children, ctx);
+  const cardsFor = (lines) => {
+    const parsed = lines
+      .filter((l) => l.trim())
+      .map((l) => {
+        const m = l.match(/^\s*[-*]\s+(.*)$/);
+        if (!m) return null;
+        const [text, attrs] = splitTrailingAttrs(m[1]);
+        if (!attrs.th && !attrs.en) return null;
+        return { term: text.replace(/:\s*$/, ''), th: attrs.th ?? attrs.en, en: attrs.en ?? attrs.th };
+      });
+    if (!parsed.length || !parsed.every(Boolean)) return null;
+    return `<ul class="answer-grid">${parsed
+      .map((p) => `<li class="answer-card"><span class="answer-term">${inline(p.term)}</span><span class="answer-meaning">${T([inline(p.th), inline(p.en)], { thHtml: true, enHtml: true })}</span></li>`)
+      .join('')}</ul>`;
+  };
+  // answer items may sit between code cells (an item, its code, the next item...): render each
+  // run of items as cards and everything else as usual, keeping a code cell with its output
+  let body = cardsFor(n.lines);
+  if (!body) {
+    const parts = [];
+    let rest = [];
+    for (const c of n.children) {
+      const cards = c.type === 'md' ? cardsFor(c.text.split('\n')) : null;
+      if (!cards) {
+        rest.push(c);
+        continue;
+      }
+      if (rest.length) parts.push(renderBlocks(rest, ctx));
+      rest = [];
+      parts.push(cards);
+    }
+    if (rest.length) parts.push(renderBlocks(rest, ctx));
+    body = parts.join('\n');
+  }
   return `<button type="button" class="btn btn-answer" aria-expanded="false" aria-controls="${id}"><span class="when-closed">${T(UI.showAnswer)}</span><span class="when-open">${T(UI.hideAnswer)}</span></button>
 <div class="answer" id="${id}" hidden>${body}</div>`;
 }
@@ -417,7 +449,8 @@ export function renderDeflist(n, ctx) {
 
 // ---------------------------------------------------------------- code cells
 
-const PY_STATEMENT = /^(import|from|def|class|if|elif|else|for|while|with|try|except|finally|return|raise|assert|pass|break|continue|global|nonlocal|del|async|await|print\s*\(|@|#)/;
+// plt./sns. calls draw or label a chart (plt.show() returns None), so they are never wrapped in print()
+const PY_STATEMENT = /^(import|from|def|class|if|elif|else|for|while|with|try|except|finally|return|raise|assert|pass|break|continue|global|nonlocal|del|async|await|print\s*\(|plt\.|sns\.|@|#)/;
 
 // VS Code runs a file, which prints nothing for a bare final expression, so wrap it in print().
 export function wrapLastExpression(code) {
@@ -425,27 +458,55 @@ export function wrapLastExpression(code) {
   let k = lines.length - 1;
   while (k >= 0 && !lines[k].trim()) k--;
   if (k < 0) return code;
-  const last = lines[k];
-  if (/^\s/.test(last) || PY_STATEMENT.test(last.trim())) return code;
-  // an assignment (=, +=, ...) outside brackets is a statement
-  let depth = 0;
-  let quote = null;
-  let comment = '';
-  let expr = last;
-  for (let c = 0; c < last.length; c++) {
-    const ch = last[c];
-    if (quote) { if (ch === quote && last[c - 1] !== '\\') quote = null; continue; }
-    if (ch === '"' || ch === "'") quote = ch;
-    else if (ch === '#') { expr = last.slice(0, c).trimEnd(); comment = `  ${last.slice(c)}`; break; }
-    else if ('([{'.includes(ch)) depth++;
-    else if (')]}'.includes(ch)) depth--;
-    else if (ch === '=' && depth === 0 && last[c + 1] !== '=' && !'=!<>'.includes(last[c - 1])) return code;
+  // split a line into its code and a trailing # comment (outside quotes)
+  const splitComment = (line) => {
+    let quote = null;
+    for (let c = 0; c < line.length; c++) {
+      const ch = line[c];
+      if (quote) { if (ch === quote && line[c - 1] !== '\\') quote = null; continue; }
+      if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === '#') return [line.slice(0, c).trimEnd(), `  ${line.slice(c)}`];
+    }
+    return [line, ''];
+  };
+  const net = (line) => {
+    const [body] = splitComment(line);
+    const plain = body.replace(/"[^"]*"|'[^']*'/g, '');
+    return (plain.match(/[([{]/g) ?? []).length - (plain.match(/[)\]}]/g) ?? []).length;
+  };
+  // an "=" outside brackets (not ==, <=, >=, !=) makes the line an assignment
+  const isAssignment = (line) => {
+    const plain = splitComment(line)[0].replace(/"[^"]*"|'[^']*'/g, '');
+    let depth = 0;
+    for (let c = 0; c < plain.length; c++) {
+      const ch = plain[c];
+      if ('([{'.includes(ch)) depth++;
+      else if (')]}'.includes(ch)) depth--;
+      else if (ch === '=' && depth === 0 && plain[c + 1] !== '=' && !'=!<>+-*/%'.includes(plain[c - 1])) return true;
+      else if (ch === '=' && depth === 0 && '+-*/%'.includes(plain[c - 1])) return true;
+    }
+    return false;
+  };
+  if (/\\\s*$/.test(lines[k - 1] ?? '')) return code;
+  // find where the last statement starts: walk up while brackets are still open
+  let start = k;
+  let depth = net(lines[k]);
+  while (depth < 0 && start > 0) {
+    start--;
+    depth += net(lines[start]);
   }
-  // a line continued from the previous one (open bracket or backslash) is left alone
-  const before = lines.slice(0, k).join('\n');
-  const opens = (before.match(/[([{]/g) ?? []).length - (before.match(/[)\]}]/g) ?? []).length;
-  if (opens > 0 || /\\\s*$/.test(lines[k - 1] ?? '')) return code;
-  lines[k] = `print(${expr.trim()})${comment}`;
+  if (depth !== 0) return code;
+  const first = lines[start];
+  if (/^\s/.test(first) || PY_STATEMENT.test(first.trim()) || isAssignment(first)) return code;
+  const [lastBody, comment] = splitComment(lines[k]);
+  if (start === k) {
+    lines[k] = `print(${lastBody.trim()})${comment}`;
+    return lines.join('\n');
+  }
+  // a statement over several lines: wrap all of it, and indent its continuation lines to match
+  lines[start] = `print(${first}`;
+  for (let j = start + 1; j < k; j++) if (lines[j].trim()) lines[j] = `      ${lines[j]}`;
+  lines[k] = `      ${lastBody})${comment}`;
   return lines.join('\n');
 }
 
@@ -516,8 +577,14 @@ function renderCode(n, output, stepOutputs, ctx, prompt = null) {
   let out = '';
   if (output) {
     const run = env === 'vscode' && isPython ? `<span class="out-cmd">$ python ${esc(file ?? `${base}.py`)}</span>\n` : '';
-    const body = output.attrs.table ? outputTable(output.text, output.attrs.table) : `<pre>${run}${esc(output.text.replace(/\s+$/, ''))}</pre>`;
-    out = `<div class="code-out${output.attrs.error ? ' is-error' : ''}"><span class="out-label" lang="en">${output.attrs.error ? 'Error' : 'Out'}</span><div class="out-body">${body}</div></div>`;
+    const text = output.text.replace(/\s+$/, '');
+    const body = output.attrs.table
+      ? outputTable(output.text, output.attrs.table)
+      : output.attrs.plot
+        ? `${text ? `<pre>${run}${esc(text)}</pre>` : ''}<div class="out-plot-row">${plotDataSnippet(n, ctx)}<div class="out-plot">${imageTag(output.attrs.plot, { ...ctx, file: ctxFile() }, output.attrs.alt ?? '', output.line)}</div></div>`
+        : `<pre>${run}${esc(text)}</pre>`;
+    // {wrap=true} on the cell: long text in a table output wraps instead of scrolling sideways
+    out = `<div class="code-out${output.attrs.error ? ' is-error' : ''}${n.attrs.wrap ? ' out-wrap' : ''}"><span class="out-label" lang="en">${output.attrs.error ? 'Error' : 'Out'}</span><div class="out-body">${body}</div></div>`;
   }
 
   // focus-mode step-through data (milestone 2)
@@ -551,6 +618,29 @@ ${promptPanel}${codeHtml}${out}
 }
 
 // A DataFrame result written by scripts/outputs.py: CSV whose first column is the index.
+// ```python {plot="..." cols="Seat Type, Rating"}: the first rows of just the columns the chart
+// uses, shown beside the chart so students see which data became the bars or dots. The table
+// comes from data="data/x.csv" on the cell, or chart_data: in the front matter.
+export function plotDataSnippet(n, ctx) {
+  if (!n.attrs.cols) return '';
+  const src = n.attrs.data ?? ctx.chartData;
+  if (!src) throw new LectureError(ctxFile(), n.line, 'cols= needs data="data/….csv" on the cell or chart_data: in the front matter');
+  const { header, rows } = parseCsv(ctx.readData(src, n.line));
+  const names = n.attrs.cols.split(',').map((c) => c.trim()).filter(Boolean);
+  const idx = names.map((c) => {
+    const j = header.indexOf(c);
+    if (j < 0) throw new LectureError(ctxFile(), n.line, `cols: no column "${c}" in ${src}`);
+    return j;
+  });
+  // pick="3,17,25" shows those row positions (so every group appears); otherwise the first rows=5
+  const picked = n.attrs.pick ? n.attrs.pick.split(',').map((x) => Number(x.trim())) : [...Array(Number(n.attrs.rows ?? 5)).keys()];
+  const show = picked.length;
+  const q = (v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const csv = [`,${names.map(q).join(',')}`, ...picked.map((i) => `${i},${idx.map((j) => q(rows[i]?.[j] ?? '')).join(',')}`)].join('\n');
+  const name = n.attrs.data_name ?? ctx.chartDataName ?? path.basename(src, '.csv');
+  return `<div class="plot-data"><p class="plot-data-label">${T([`ข้อมูลที่กราฟนี้ใช้ <code>${esc(name)}</code>`, `The data this chart uses: <code>${esc(name)}</code>`], { thHtml: true, enHtml: true })}</p>${outputTable(csv, `${rows.length} rows × ${names.length} ${names.length === 1 ? 'column' : 'columns'} (${n.attrs.pick ? `${show} rows shown` : `first ${show} shown`})`)}</div>`;
+}
+
 export function outputTable(text, note) {
   const { header, rows } = parseCsv(text);
   const head = `<tr>${header.map((h, j) => `<th scope="col"${j === 0 ? ' class="df-index"' : ''}>${esc(h)}</th>`).join('')}</tr>`;

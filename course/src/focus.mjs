@@ -5,15 +5,16 @@
 //   ::: focus      → one frame per block, showing exactly its content (overrides the default)
 //   ::: steps      → one frame, one step per list item
 //   code {steps=}  → one frame that highlights one line per step, with ::: step-outputs
-//   ::: transform  → one frame with the before → after tables
+//   ::: transform  → one frame with the before → after tables ({focus=false}: none, for a ::: focus copy)
 //   otherwise      → heading + the first example, tokens, figure, plot, dataframe, code,
 //                    table or key-term list (heading alone if there is none)
 // Paragraphs never show; the teacher says them.
 
-import { esc, inline, T, UI, icon, renderTokens, renderTable, renderBlocks, wrapLastExpression, ctxFile, splitColumns, outputTable } from './render.mjs';
+import { esc, inline, T, UI, icon, renderTokens, renderTable, renderBlocks, wrapLastExpression, ctxFile, splitColumns, outputTable, plotDataSnippet } from './render.mjs';
 import { renderTransform } from './transform.mjs';
-import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards } from './blocks.mjs';
+import { renderDataframe, renderPrompt, renderFigure, renderIndexExplorer, renderCards, imageTag, renderBpeExplorer } from './blocks.mjs';
 import { highlightLines } from './highlight.mjs';
+import { renderInteractive, INTERACTIVE_LANGS } from './interactives.mjs';
 import { splitTrailingAttrs, LectureError } from './parse.mjs';
 
 const plain = (html) => html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
@@ -71,11 +72,19 @@ function sectionFrames(s, ctx) {
       const next = siblings[i + 1]?.type === 'fence' && siblings[i + 1].lang === 'output' ? siblings[i + 2] : siblings[i + 1];
       const stepOutputs = next?.type === 'container' && next.name === 'step-outputs' ? next : null;
       out.push(codeFrame(n, stepOutputs, s, frame, ctx));
-    } else if (n.type === 'fence' && n.lang === 'cards') {
+    } else if (n.type === 'fence' && siblings[i + 1]?.type === 'fence' && siblings[i + 1].lang === 'output' && siblings[i + 1].attrs.plot) {
+      // a plotting cell: the code beside the chart it draws
+      const plot = `<div class="fx-plot">${imageTag(siblings[i + 1].attrs.plot, { ...ctx, file: ctxFile() }, siblings[i + 1].attrs.alt ?? '', siblings[i + 1].line)}</div>`;
+      out.push(frame('cols', `${head(' fx-head-sm')}<div class="fx-body"><div class="fx-cols fx-cols-plot"><div class="fx-col">${visualHtml(n, ctx)}${plotDataSnippet(n, ctx)}</div><div class="fx-col">${plot}</div></div></div>`));
+    } else if (n.type === 'fence' && n.lang === 'cards' && n.attrs.focus !== 'false') {
       out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderCards(n, { ...ctx, file: ctxFile() })}</div>`));
+    } else if (n.type === 'fence' && n.lang === 'bpe-explorer') {
+      out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderBpeExplorer(n, { ...ctx, file: ctxFile() })}</div>`));
+    } else if (n.type === 'fence' && INTERACTIVE_LANGS.has(n.lang)) {
+      out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderInteractive(n, { ...ctx, file: ctxFile() })}</div>`));
     } else if (n.type === 'fence' && n.lang === 'index-explorer') {
       out.push(frame('widget', `${head(' fx-head-sm')}<div class="fx-body">${renderIndexExplorer(n, { ...ctx, file: ctxFile() })}</div>`));
-    } else if (n.type === 'container' && n.name === 'transform') {
+    } else if (n.type === 'container' && n.name === 'transform' && n.attrs.focus !== 'false') {
       out.push(frame('transform', `${head(' fx-head-sm')}<div class="fx-body">${renderTransform(n, { ...ctx, file: ctxFile(), renderBlocks: (nodes) => renderBlocks(nodes, ctx) })}</div>`));
     }
   });
@@ -86,7 +95,7 @@ function sectionFrames(s, ctx) {
   walk(s.blocks, (n) => {
     if (visual) return;
     if (n.type === 'container' && (n.name === 'example' || n.name === 'tokens')) visual = n;
-    else if (n.type === 'fence' && n.lang !== 'output' && !(n.lang === 'prompt' && n.attrs.attach)) visual = n;
+    else if (n.type === 'fence' && n.lang !== 'output' && !(n.lang === 'prompt' && n.attrs.attach) && n.attrs.focus !== 'false') visual = n;
     else if (n.type === 'table' || n.type === 'deflist') visual = n;
   });
   const compact = visual && (visual.type === 'table' || visual.type === 'fence');
@@ -101,6 +110,7 @@ function focusPiece(nodes, ctx) {
       if (n.type === 'fence' && n.lang === 'output') {
         // shown under its code: in a side-by-side frame the results are what students compare
         if (nodes[i - 1]?.type !== 'fence') return '';
+        if (n.attrs.plot) return `<div class="fx-plot">${imageTag(n.attrs.plot, { ...ctx, file: ctxFile() }, n.attrs.alt ?? '', n.line)}</div>`;
         return `<div class="fx-mini-out">${n.attrs.table ? outputTable(n.text, n.attrs.table) : `<pre>${esc(n.text.replace(/\s+$/, ''))}</pre>`}</div>`;
       }
       if (n.type === 'fence' && n.lang === 'prompt' && n.attrs.attach) return ''; // behind the code's Prompt button in page view
@@ -173,7 +183,9 @@ function codeLines(n, ctx) {
 function focusFrame(n, exercise, answer, head, frame, ctx) {
   const onlyText = n.children.length === 1 && n.children[0].type === 'md' && !n.children[0].text.includes('\n\n');
   const content = onlyText ? `<p class="fx-display">${inline(n.children[0].text.trim())}</p>` : `<div class="fx-blocks">${renderBlocks(n.children, ctx)}</div>`;
-  if (!exercise) return frame('focus', `${head()}<div class="fx-body">${content}</div>`);
+  // a frame that is only a figure, a table, cards or a transform: small heading, so the visual gets the height
+  const visualOnly = n.children.every((c) => (c.type === 'fence' && ['figure', 'cards'].includes(c.lang)) || c.type === 'table' || (c.type === 'container' && c.name === 'transform'));
+  if (!exercise) return frame('focus', `${head(visualOnly ? ' fx-head-sm' : '')}<div class="fx-body">${content}</div>`);
 
   const label = exerciseLabelText(exercise);
   const steps = [`<div class="fx-step" data-step="0">${content}</div>`];
@@ -193,11 +205,16 @@ function exerciseLabelText(n) {
 }
 
 function answerCards(answer) {
-  // list items of the answer itself, not lines inside a code or prompt fence
+  // list items of the answer itself: not lines inside a code or prompt fence, and not lists
+  // inside a nested ::: th / ::: en block (those explain the answer in page view)
   let inFence = false;
+  let depth = 0;
   const listLines = answer.lines.filter((l) => {
     if (/^\s*(```|~~~)/.test(l)) inFence = !inFence;
-    return !inFence;
+    if (inFence) return false;
+    if (/^\s*:::\s*\S/.test(l)) depth++;
+    else if (/^\s*:::\s*$/.test(l)) depth = Math.max(0, depth - 1);
+    return depth === 0;
   });
   const cards = listLines
     .map((l) => l.match(/^\s*[-*]\s+(.*)$/))

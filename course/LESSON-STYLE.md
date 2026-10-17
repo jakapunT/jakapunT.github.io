@@ -34,7 +34,7 @@ obvious, and use one of these:
 
 - One running dataset per lesson (lesson 10: the airline reviews, `reviews`; the 8-row `small`).
 - Show the data students need **inside the same card** as the question.
-- Practice tables get a Download CSV (```` ```dataframe ````) so students can try them in Colab.
+- Practice tables get a Download CSV (```` ```dataframe ````) so students can try them in VS Code (the nlp-basic course is taught in VS Code, `env: vscode`).
 
 ## Prompts (AI is part of the workflow)
 
@@ -84,9 +84,17 @@ obvious, and use one of these:
 
 ## Focus mode and PDFs
 
-- Every frame must fit 1280×720 at projector size. Check each changed section in focus mode.
+- Every frame must fit 1280×720 at projector size. Check each changed section in focus mode,
+  in **both ไทย and EN**: the Thai subtitle under the heading makes Thai frames about 40px taller.
 - Use `::: focus {page=false}` for a projector-only frame (for example the table plus the code to
   predict), so the page does not repeat it.
+- When a frame is too tall, fix the projector, not the page: keep the page text as the teacher
+  wrote it.
+  - Cards: split the set into two ```` ```cards ```` blocks at a point that keeps the page's
+    2-per-row rows whole (after card 2 or 4), and give the second `{start=N}` (L10-S28, S39, S40).
+  - Transform: `{focus=false}` on it, then a `::: focus {page=false}` copy of the same transform
+    with no caption; the teacher says the caption (L10-S28, S33, S35–S37).
+  - Change shared CSS only as a last resort, scoped so it reaches no other lesson's frames.
 - The only PDF students download is the slides (ดาวน์โหลด PDF (สไลด์): one 16:9 page per frame,
   answers left out), so every frame should also read well on paper.
 

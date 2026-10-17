@@ -84,6 +84,8 @@ export async function buildCourse(slug, { dev = false, released = false } = {}) 
     const ctx = {
       env: meta.env ?? course.env ?? 'colab',
       install: meta.install ?? course.install ?? null,
+      chartData: meta.chart_data ?? null, // default table for plot cells' cols= snippets
+      chartDataName: meta.chart_data_name ?? null,
       installShown: false,
       dev,
       cellCount: 0,

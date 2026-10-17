@@ -93,6 +93,25 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx-reveal:has(.df) .fx-answer-card { min-width: 0; padding: calc(8 * var(--u)) calc(16 * var(--u)); text-align: left; }
 .fx-reveal:has(.df) .fx-answer-term { font-size: max(16px, calc(24 * var(--u))); }
 .fx-reveal:has(.df) .fx-answer-meaning { font-size: max(16px, calc(17 * var(--u))); line-height: 1.45; }
+/* a projector-only ::: focus holding ::: columns with a dataframe (L11-S01): the whole table, compact */
+.fx-blocks .cols .df-head, .fx-blocks .cols .df-shape { display: none; }
+.fx-blocks .cols .df-scroll { max-height: none; }
+.fx-blocks .cols .table-scroll .df-table { font-size: max(14px, calc(16 * var(--u))); }
+.fx-blocks .cols .table-scroll .df-table th, .fx-blocks .cols .table-scroll .df-table td { padding: calc(2 * var(--u)) calc(10 * var(--u)); }
+.fx .fx-blocks .cols .data-table th, .fx .fx-blocks .cols .data-table td { font-size: max(16px, calc(19 * var(--u))); line-height: 1.35; padding: calc(5 * var(--u)) calc(8 * var(--u)); }
+.fx-blocks .cols .data-table .cell-sub { font-size: max(16px, calc(15 * var(--u))); }
+/* tables beside something else, and dataframes in a projector-only ::: focus: compact */
+.fx .fx-col .data-table th, .fx .fx-col .data-table td { font-size: max(16px, calc(20 * var(--u))); line-height: 1.35; padding: calc(5 * var(--u)) calc(14 * var(--u)) calc(5 * var(--u)) 0; }
+.fx-k-focus .df-head, .fx-k-focus .df-shape { display: none; }
+.fx-k-focus .df-scroll { max-height: none; }
+.fx-k-focus .table-scroll .df-table { font-size: max(15px, calc(16 * var(--u))); }
+.fx-k-focus .table-scroll .df-table th, .fx-k-focus .table-scroll .df-table td { padding: calc(3 * var(--u)) calc(12 * var(--u)); }
+/* an exercise whose question is a plain table (L11-S22): questions left, answers revealed right */
+.fx-reveal:has(.data-table):not(:has(.df)) { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: calc(28 * var(--u)); align-items: start; align-self: stretch; }
+.fx-reveal:has(.data-table):not(:has(.df)) .fx-answers { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: calc(10 * var(--u)); }
+.fx-reveal:has(.data-table):not(:has(.df)) .fx-answer-card { min-width: 0; padding: calc(8 * var(--u)) calc(16 * var(--u)); text-align: left; }
+.fx-reveal:has(.data-table):not(:has(.df)) .fx-answer-term { font-size: max(16px, calc(24 * var(--u))); }
+.fx-reveal:has(.data-table):not(:has(.df)) .fx-answer-meaning { font-size: max(16px, calc(17 * var(--u))); line-height: 1.45; }
 
 /* ---------- code step-through ---------- */
 .fx-code {
@@ -129,6 +148,9 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx .cell-sub { font-size: max(16px, calc(19 * var(--u))); }
 .fx-terms { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: calc(18 * var(--u)) calc(28 * var(--u)); }
 .fx-terms li { padding: calc(8 * var(--u)) calc(26 * var(--u)); border-radius: calc(12 * var(--u)); background: var(--cream); font-size: calc(44 * var(--u)); font-weight: 500; }
+/* a long key-term list (10+) gets smaller pills so the frame still fits */
+.fx-terms:has(> li:nth-child(10)) { gap: calc(14 * var(--u)) calc(20 * var(--u)); }
+.fx-terms:has(> li:nth-child(10)) li { font-size: calc(36 * var(--u)); padding: calc(6 * var(--u)) calc(20 * var(--u)); }
 .fx-blocks { font-size: calc(36 * var(--u)); text-align: center; }
 .fx-blocks .code-cell, .fx-blocks .df { text-align: left; }
 
@@ -140,6 +162,13 @@ html.fx-on, html.fx-on body { overflow: hidden; }
 .fx .table-scroll .tf-table th, .fx .table-scroll .tf-table td { padding: calc(5 * var(--u)) calc(14 * var(--u)); }
 .fx .tf-code { padding: calc(4 * var(--u)) calc(14 * var(--u)) !important; }
 .fx .transform { gap: calc(12 * var(--u)); }
+/* a projector copy of a transform (::: focus {page=false} beside ::: transform {focus=false}, L10-S28):
+   tighter rows and group gaps, so a tall table and a short caption fit one frame */
+.fx-k-focus:has(.transform) { gap: calc(28 * var(--u)); }
+.fx-blocks .transform { text-align: left; }
+.fx-blocks .transform .tf-table { line-height: 1.25; }
+.fx-blocks .transform .table-scroll .tf-table th, .fx-blocks .transform .table-scroll .tf-table td { padding-top: calc(3 * var(--u)) !important; padding-bottom: calc(3 * var(--u)) !important; }
+.fx-blocks .transform .table-scroll .tf-gap td { border-bottom-width: calc(3 * var(--u)); }
 
 /* ---------- bottom bar ---------- */
 .fx-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: calc(16 * var(--u)); }
@@ -207,8 +236,22 @@ ol.fx-points > li::before {
 }
 ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var(--u)); top: calc(16 * var(--u)); width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: var(--accent); }
 .fx-points em { display: block; font-style: normal; font-size: .72em; color: var(--muted); }
-.fx-col .diagram { height: calc(380 * var(--u)); }
+/* a diagram with a numbered legend beside it (L10-S01): sized and set close to the heading so its
+   two-line Thai caption stays in the frame */
+.fx-col .diagram { height: calc(340 * var(--u)); }
+.fx-k-cols:has(.fx-col .diagram) { gap: calc(28 * var(--u)); }
+/* two outputs side by side, one a table (L10-S10): compact rows, like other tables beside something */
+.fx-cols-even .fx-mini-out .table-scroll .df-table th, .fx-cols-even .fx-mini-out .table-scroll .df-table td { padding-top: calc(5 * var(--u)); padding-bottom: calc(5 * var(--u)); }
 .fx-cols-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.fx-cols-plot { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: calc(28 * var(--u)); }
+.fx-cols-plot .fx-col .fx-code { font-size: max(16px, calc(17 * var(--u))); }
+.fx-cols-plot .plot-data-label { margin: 0 0 calc(4 * var(--u)); font-size: max(16px, calc(16 * var(--u))); color: var(--muted); }
+.fx-cols-plot .plot-data .df-table { font-size: max(14px, calc(15 * var(--u))); }
+.fx-cols-plot .plot-data .df-table th, .fx-cols-plot .plot-data .df-table td { padding: calc(2 * var(--u)) calc(10 * var(--u)); }
+.fx-cols-plot .plot-data .out-shape { display: none; }
+.fx-cols-plot .plot-data .df-table thead th { white-space: normal; vertical-align: bottom; }
+.fx-plot { background: #fff; border: 1px solid var(--card-border); border-radius: calc(10 * var(--u)); padding: calc(8 * var(--u)); }
+.fx-plot img { display: block; width: 100%; height: auto; max-height: calc(390 * var(--u)); object-fit: contain; }
 .fx-mini-out { border: 1px solid var(--card-border); border-radius: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(16 * var(--u)); }
 .fx-mini-out pre { margin: 0; font: max(16px, calc(18 * var(--u)))/1.5 var(--font-code); white-space: pre; overflow-x: auto; }
 .fx-mini-out .table-scroll .df-table { font-size: max(16px, calc(17 * var(--u))); }
@@ -218,6 +261,16 @@ ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var
 .fx .ixp { --ix: max(1px, calc(1.15 * var(--u))); align-self: center; }
 .fx .ixp-table button { min-height: 0; padding-top: calc(4 * var(--ix)); padding-bottom: calc(4 * var(--ix)); }
 .fx .ixp-hint { display: none; }
+/* the BPE widget on the projector: compact rows, top 4 pairs, no repeated head */
+.fx .bpe { --ix: max(1px, calc(0.9 * var(--u))); align-self: stretch; }
+.fx .bpe .bpe-h { display: none; }
+.fx .bpe .bpe-vocab { margin-top: calc(8 * var(--ix)); }
+.fx .bpe .bpe-test { margin-top: calc(6 * var(--ix)); padding: calc(6 * var(--ix)) calc(12 * var(--ix)); }
+.fx .bpe .ixp-head { display: none; }
+.fx .bpe .ixp-body { padding-top: calc(10 * var(--ix)); padding-bottom: calc(10 * var(--ix)); }
+.fx .bpe .bpe-say { margin: calc(8 * var(--ix)) 0; }
+.fx .bpe-words td, .fx .bpe-pairs td, .fx .bpe-words th { padding-top: calc(2 * var(--ix)); padding-bottom: calc(2 * var(--ix)); }
+.fx .bpe-pairs tr:nth-child(n+5) { display: none; }
 
 /* ```cards: four across on the projector */
 .fx .pc-grid { --k: max(0.8px, calc(0.98 * var(--u))); grid-template-columns: repeat(4, minmax(0, 1fr)); align-self: stretch; text-align: left; }
@@ -229,6 +282,10 @@ ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var
 .fx .pc-arrow { font-size: calc(18 * var(--k)); }
 .fx .pc-result { flex: 1 1 0; min-width: 0; max-width: none; padding: calc(6 * var(--k)) calc(8 * var(--k)); font-size: calc(15 * var(--k)); }
 .fx .pc-grid:has(> :nth-child(5)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fx .pc-grid.pc-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fx .pc-grid.pc-cols-3:has(> :nth-child(5)), .fx .pc-grid.pc-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.fx .pc-grid.pc-cols-3:has(> :nth-child(5)):not(:has(> :nth-child(6))) { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: calc(10 * var(--k)); }
+.fx .pc-vis-img img { width: auto; max-width: 100%; max-height: calc(210 * var(--u)); margin: 0 auto; }
 
 /* ::: transform {right=...} (merge): inputs stacked on the left → result on the right */
 .fx .tf-merge { display: grid; grid-template-columns: auto auto auto; grid-template-areas: "code code code" "in down out" "cap cap cap"; align-items: center; justify-content: center; column-gap: calc(24 * var(--u)); row-gap: calc(14 * var(--u)); }
@@ -242,6 +299,13 @@ ul.fx-points > li::before { content: ''; position: absolute; left: calc(14 * var
 .fx .tf-merge .tf-table th, .fx .tf-merge .tf-table td { padding: calc(4 * var(--u)) calc(10 * var(--u)) !important; }
 .fx .tf-merge .tf-plus { font-size: calc(28 * var(--u)); line-height: 1; }
 .fx .tf-merge .tf-label { font-size: max(14px, calc(15 * var(--u))); }
+/* a projector copy of a merge (L10-S33: two input tables stacked on the left): tighter still */
+.fx-blocks .tf-merge { row-gap: calc(8 * var(--u)); }
+.fx-blocks .tf-merge:not(:has(> .tf-caption)) { grid-template-areas: "code code code" "in down out"; }
+.fx-blocks .tf-merge > .tf-code { font-size: max(16px, calc(20 * var(--u))) !important; line-height: 1.4; }
+.fx-blocks .tf-merge .tf-box { gap: calc(2 * var(--u)); }
+.fx-blocks .tf-merge .table-scroll .tf-table th, .fx-blocks .tf-merge .table-scroll .tf-table td { padding-top: calc(2 * var(--u)) !important; padding-bottom: calc(2 * var(--u)) !important; }
+.fx-blocks .tf-merge .table-scroll .tf-gap td { border-bottom-width: calc(2 * var(--u)); }
 .fx .pc-vis-venn { padding: calc(6 * var(--k)); }
 .fx .pc-vis-venn .pc-col th, .fx .pc-vis-venn .pc-col td { font-size: calc(11 * var(--k)); padding: calc(3 * var(--k)) calc(5 * var(--k)); height: auto; }
 .fx .venn { width: calc(120 * var(--k)); }
@@ -269,3 +333,7 @@ html.print-slides .fx-step { visibility: visible !important; opacity: 1 !importa
 html.print-slides .fx-morph .fx-step:not(:last-child), html.print-slides .fx-side .fx-step:not(:last-child) { visibility: hidden !important; }
 html.print-slides .fx-frame[data-answer] .fx-step:not([data-step="0"]) { display: none !important; }
 html.print-slides .fx-code .ln { opacity: 1 !important; background: none !important; }
+/* wide SVG infographics (L12-S08): as big as the frame allows */
+.fx .fig .diagram.diagram-wide { width: 100%; max-width: 100%; height: auto; max-height: calc(480 * var(--u)); min-width: 0; }
+/* a frame that is only a figure: leave room for the small heading and the caption */
+.fx .fx-k-focus .fig .diagram.diagram-wide { max-height: calc(345 * var(--u)); }

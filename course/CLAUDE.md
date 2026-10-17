@@ -109,7 +109,7 @@ style, so restyle them to the card/tag look of `lecture-page-th.html`.
 ## 6. Markdown syntax (Decided; implement exactly)
 
 Use markdown-it + markdown-it-container + markdown-it-attrs + gray-matter, or equivalents.
-`courses/nlp-basic/lesson11-tokenization.md` is the canonical syntax example and
+`courses/nlp-basic/lesson12-tokenization.md` is the canonical syntax example and
 `lesson10-pandas.md` the canonical full lesson. Everything it uses is required, including
 the forms shown only there:
 - `{th="..."}` on table cells and steps items, which adds a Thai subtitle;
@@ -120,7 +120,7 @@ the forms shown only there:
 Lessons carry a running number in course order (`lesson: 10`), never a week number, because the
 calendar changes every year. The year's calendar lives only in `course.yml` under `schedule:`
 (`{ lesson: 10, week: 13, date: 2026-10-30 }`, plus `note:` entries for exams and holidays). The
-course home renders that schedule; a lesson page shows "บทที่ 10 จาก 13" and its date. Prev/next
+course home renders that schedule; a lesson page shows "บทที่ 10 จาก 14" and its date. Prev/next
 follow lesson numbers. Files are `lesson<NN>-<topic>.md`.
 
 ### Release dates (added 2026-10, at the teacher's request)
@@ -145,7 +145,7 @@ The teacher writes lessons ahead; each goes online a few days before its class (
 ```yaml
 ---
 course: nlp-basic
-lesson: 11
+lesson: 12
 title: Tokenization and text normalization
 title_th: การตัดคำและการปรับรูปข้อความ
 lead_th: โปรแกรมแบ่งข้อความดิบออกเป็นหน่วยที่นับได้อย่างไร ...
@@ -158,10 +158,10 @@ reading: Jurafsky & Martin, SLP ch. 2
 
 ### Sections and IDs
 ```markdown
-## Spaces are not enough {#l11-s02 th="เว้นวรรคอย่างเดียวไม่พอ"}
+## Spaces are not enough {#l12-s02 th="เว้นวรรคอย่างเดียวไม่พอ"}
 ```
 - The ID format is `l<LL>-s<NN>` (lesson, section) and is **required**. Fail the build if an ID
-  is missing or duplicated. IDs are shown as `L11-S02` and are how the teacher asks for fixes,
+  is missing or duplicated. IDs are shown as `L12-S02` and are how the teacher asks for fixes,
   so never renumber existing IDs automatically.
 - The summary strip:
   ```markdown
@@ -245,7 +245,11 @@ not:
   - มีโอกาส 97% ที่สมมติฐานของเราถูก
 ```
 ~~~~
-Inline math is `$...$`. Display math is `$$...$$`.
+Inline math is `$...$`. Display math is `$$...$$` (added 2026-10, stats-dh lesson 10): KaTeX renders it at
+build time (`src/math.mjs`), its fonts ship in `_fonts/katex/`, and a page gets KaTeX's CSS only when it has math.
+Inline `$` follows pandoc's rule so prices stay text: no space after the opening `$` or before the closing one, and
+no digit right after the closing `$` (`$\sigma(z) = $` does not render; write `$\sigma(z)$ = 0.5`). A formula frame in
+focus mode is a `::: focus {page=false}` with one `$\displaystyle ...$` line. The ```formula block is still not built.
 
 - **dataframe:** pandas-like table with dtypes under the headers, an index column, `N rows × M
   columns`, and *Download CSV* (the full file) plus *Copy code* (`pd.read_csv(...)`). Infer dtypes
@@ -256,6 +260,23 @@ Inline math is `$...$`. Display math is `$$...$$`.
   **Prompt** button in that cell's header, opening the prompt above the code. Use it for "the
   plain-words prompt that writes this code". The PDF always shows it.
   `{attach open}` starts with the prompt opened (used in the groupby sections).
+- **prompt title_th:** `{title="✅ With CoT" title_th="✅ มี CoT"}` gives the title in both languages;
+  `title` alone shows in both. Two prompts in `::: columns {split=even}` (a bad and a good one) line up at the top.
+- **Plot cells (added 2026-10, lesson 11):** `{plot="images/l11-x.png"}` on a python cell makes
+  `npm run outputs` save the figure it draws and write ```output {plot=...}; the page shows the chart
+  under the code, and focus mode shows code beside chart. `cols="Seat Type, Rating"` adds a snippet of
+  just those columns (first `rows=5`, or the row positions in `pick="0,5,26"`) from `data="…csv"` or
+  the front matter's `chart_data:` / `chart_data_name:`, so students see the data behind the chart.
+- **cards {cols=3}:** 3 cards per row (galleries); a card's `img:` shows a small chart.
+  Each ```cards block is one focus frame; a set too tall for 1280×720 is split into two blocks, and
+  `{start=5}` makes the second block number its cards from 5.
+- **stepper / sorter (added 2026-10, stats-dh lesson 10; `src/interactives.mjs`, `templates/interactives.{js,css}`):**
+  ```` ```stepper {control="slider"|"buttons"} ```` is one bar chart per step (YAML `steps:` with `label`, `bars:
+  {name: value}`, `highlight`, `note_th/en`), moved by a slider or ← → buttons; every step is rendered at build time.
+  Negative bars grow left of a centre line, and a bar of exactly 0 shows a crossed-out name (Lasso dropping a feature).
+  ```` ```sorter ```` lists columns with Keep / Drop buttons and a Check button (YAML `target`, `items:` with `name`,
+  `def_th/en`, `answer: keep|drop|either`, `why_th/en`). Both get their own focus frame. Numbers in them must be real
+  (computed in `course/.venv`, then pasted in).
 - **plot:** show the image first and hide the code. Remind authors in the docs that matplotlib
   needs a Thai font, or Thai labels render as boxes. Colab has no Thai font installed.
 
@@ -286,7 +307,8 @@ The same page, toggled with the **Focus** button or the **F** key. See `referenc
   - `::: transform {before="data/x.csv" after="data/y.csv" code="df.groupby(...)" group="decade"}`
     shows a before → after table. Rows in the same group share a tint and also carry a text
     label, and the columns being used are highlighted. Authors supply both CSVs; nothing is
-    computed in the browser.
+    computed in the browser. If its frame is too tall, `{focus=false}` drops that frame and a
+    `::: focus {page=false}` right after it holds the same transform without the caption (compact rows).
 - Arrow keys and PageUp/PageDown move between frames (clickers send these). Esc and F exit back
   to the same section in page view. Respect `prefers-reduced-motion`.
 

@@ -91,7 +91,7 @@ export function renderPrompt(n, ctx) {
   }
   if (bilingual) {
     const title = n.attrs.title
-      ? `<span class="prompt-title">${inline(n.attrs.title)}</span>`
+      ? `<span class="prompt-title">${n.attrs.title_th ? TH(n.attrs.title_th, n.attrs.title) : inline(n.attrs.title)}</span>`
       : n.attrs.attach
         ? `<span class="prompt-title">${T(['prompt ที่เขียนโค้ดนี้', 'the prompt that writes this code'])}</span>`
         : '';
@@ -117,7 +117,8 @@ export function renderPrompt(n, ctx) {
     : [{ role: 'user', text: n.text }];
   const copyText = roles.filter((r) => r.role !== 'output').map((r) => (roles.length > 1 ? `${r.role}: ${r.text}` : r.text)).join('\n\n').trim();
   const copyId = ctx.addFile({ text: copyText });
-  const title = n.attrs.title ? `<span class="prompt-title">${inline(n.attrs.title)}</span>` : '';
+  // title_th gives the Thai title; title alone shows in both languages
+  const title = n.attrs.title ? `<span class="prompt-title">${n.attrs.title_th ? TH(n.attrs.title_th, n.attrs.title) : inline(n.attrs.title)}</span>` : '';
   return `<figure class="prompt-card">
 <figcaption class="prompt-head"><span class="prompt-tag">${icon('chat', 14)}<span lang="en">Prompt</span></span>${title}<span class="code-actions"><button type="button" class="btn btn-light" data-copy="${copyId}">${icon('copy')}${T(['คัดลอก', 'Copy'])}</button></span></figcaption>
 ${roles
@@ -130,10 +131,27 @@ ${roles
 
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 
+// A plot or card image as a data URI (it must sit inside the encrypted page). Plots come from
+// ```output {plot="images/….png"}, which `npm run outputs` writes from the cell's figure.
+export function imageTag(src, ctx, alt = '', line = 1) {
+  const file = path.join(ctx.sourceDir, src);
+  if (!fs.existsSync(file)) {
+    return `<div class="fig-placeholder">${icon('image', 22)}<span>${T(['ยังไม่มีรูป (รัน npm run outputs)', 'Image not made yet (run npm run outputs)'])}</span><code>${esc(src)}</code></div>`;
+  }
+  const type = MIME[path.extname(file).toLowerCase()];
+  if (!type) throw new LectureError(ctx.file, line, `image "${src}" must be .png, .jpg, .gif or .webp`);
+  const bytes = fs.readFileSync(file);
+  if (bytes.length > 300 * 1024) console.warn(`warning: ${src} is ${Math.round(bytes.length / 1024)} KB; compress it below 300 KB (it is embedded in the page)`);
+  return `<img src="data:${type};base64,${bytes.toString('base64')}" alt="${esc(alt)}">`;
+}
+
 // Images go inside the encrypted page: SVG inline (page fonts, tokens.css colours, ไทย/EN
 // labels), other images as data URIs. Figures are numbered per lesson: รูปที่ 10.1, 10.2 ...
 export function renderFigure(n, ctx) {
-  n.figNo ??= ++ctx.figureCount;
+  // the same image shown twice (page view and a projector-only ::: focus) keeps one number
+  ctx.figureBySrc ??= new Map();
+  n.figNo ??= (n.attrs.src && ctx.figureBySrc.get(n.attrs.src)) || ++ctx.figureCount;
+  if (n.attrs.src && !ctx.figureBySrc.has(n.attrs.src)) ctx.figureBySrc.set(n.attrs.src, n.figNo);
   const label = `${Number(ctx.lessonPad)}.${n.figNo}`;
   const { src, source, alt } = n.attrs;
   const captionTh = n.text.trim();
@@ -215,16 +233,23 @@ export function renderIndexExplorer(n, ctx) {
 const TONES = new Set(['keep', 'drop', 'label', 'check']);
 const TH = (th, en) => T([inline(String(th)), inline(String(en ?? th))], { thHtml: true, enHtml: true });
 
+// A card cell's text, escaped, with line-break points where a long code name may wrap without
+// cutting a word: after _ . / and between camelCase parts (Sequential·Feature·Selector).
+const cell = (v) => esc(String(v)).replace(/([_./])(?=\w)/g, '$1<wbr>').replace(/([a-z])(?=[A-Z][a-z])/g, '$1<wbr>');
+
+// The same break points inside inline `code` of a card's text.
+const codeBreaks = (html) => html.replace(/<code>([^<]*)<\/code>/g, (m, c) => `<code>${c.replace(/([_./])(?=\w)/g, '$1<wbr>').replace(/([a-z])(?=[A-Z][a-z])/g, '$1<wbr>')}</code>`);
+
 function miniColumn(name, cells, highlight) {
   const rows = cells
     .map((v, k) => {
       if (v === '-') return `<tr class="pc-removed"><td>${icon('bad', 12)}<span class="sr-only">removed</span></td></tr>`;
       if (v == null) return `<tr><td class="pc-nan">NaN</td></tr>`;
       const changed = highlight && highlight[k] == null && highlight[k] !== undefined;
-      return `<tr><td${changed ? ' class="pc-new"' : ''}>${esc(String(v))}</td></tr>`;
+      return `<tr><td${changed ? ' class="pc-new"' : ''}>${cell(v)}</td></tr>`;
     })
     .join('');
-  return `<table class="pc-col"><thead><tr><th scope="col">${esc(name)}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="pc-col"><thead><tr><th scope="col">${cell(name)}</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // Two circles, the left and right tables of a join; the shaded part is what the join keeps.
@@ -244,8 +269,8 @@ function venn(kind, left = 'left', right = 'right') {
 }
 
 function resultTable(cols, rows) {
-  const head = cols.map((c) => `<th scope="col">${esc(c)}</th>`).join('');
-  const body = rows.map((r) => `<tr>${r.map((v) => (v == null ? '<td class="pc-nan">NaN</td>' : `<td>${esc(String(v))}</td>`)).join('')}</tr>`).join('');
+  const head = cols.map((c) => `<th scope="col">${cell(c)}</th>`).join('');
+  const body = rows.map((r) => `<tr>${r.map((v) => (v == null ? '<td class="pc-nan">NaN</td>' : `<td>${cell(v)}</td>`)).join('')}</tr>`).join('');
   return `<table class="pc-col pc-result-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
@@ -257,6 +282,8 @@ export function renderCards(n, ctx) {
     throw new LectureError(ctx.file, n.line, `\`\`\`cards is not valid YAML: ${e.message.split('\n')[0]}`);
   }
   if (!Array.isArray(items) || !items.length) throw new LectureError(ctx.file, n.line, '```cards needs a YAML list of cards');
+  // ```cards {start=3}: a set split into two blocks (one projector frame each) keeps counting
+  const start = Math.max(1, Math.floor(Number(n.attrs.start)) || 1);
   const cards = items.map((c, k) => {
     for (const f of ['when_th', 'when_en', 'do_th', 'do_en']) {
       if (!c[f]) throw new LectureError(ctx.file, n.line, `\`\`\`cards item ${k + 1} needs ${f}`);
@@ -269,6 +296,9 @@ export function renderCards(n, ctx) {
       vis = `<div class="pc-vis pc-vis-venn">${venn(c.venn, l, r)}${Array.isArray(c.rows) && Array.isArray(c.cols) ? resultTable(c.cols, c.rows) : ''}</div>`;
     } else if (Array.isArray(c.rows) && Array.isArray(c.cols)) {
       vis = `<div class="pc-vis">${resultTable(c.cols, c.rows)}</div>`;
+    } else if (c.img) {
+      // a small chart: card galleries (which chart for which data, good vs bad)
+      vis = `<div class="pc-vis pc-vis-img">${imageTag(c.img, ctx, c.alt ?? c.when_en, n.line)}</div>`;
     } else if (c.col && Array.isArray(c.before)) {
       const after = Array.isArray(c.after)
         ? miniColumn(c.col, c.after, c.before)
@@ -279,11 +309,97 @@ export function renderCards(n, ctx) {
       ? `<div class="pc-prompt"><p class="pc-prompt-tag">${icon('chat', 13)}<span lang="en">Prompt</span></p><p class="pc-prompt-text">${TH(c.prompt_th, c.prompt_en)}</p></div>`
       : '';
     return `<li class="pc-card pc-${tone}">
-<p class="pc-when"><span class="pc-n">${k + 1}</span><span>${TH(c.when_th, c.when_en)}</span></p>
+<p class="pc-when"><span class="pc-n">${start + k}</span><span>${TH(c.when_th, c.when_en)}</span></p>
 ${vis}
-<p class="pc-do">${icon('ok', 16)}<span>${TH(c.do_th, c.do_en)}</span></p>
+<p class="pc-do">${icon('ok', 16)}<span>${codeBreaks(TH(c.do_th, c.do_en))}</span></p>
 ${prompt}
 </li>`;
   });
-  return `<ol class="pc-grid">${cards.join('\n')}</ol>`;
+  // ```cards {cols=3}: more, smaller cards per row (a gallery of small charts)
+  const cols = Number(n.attrs.cols);
+  return `<ol class="pc-grid${cols >= 2 && cols <= 4 ? ` pc-cols-${cols}` : ''}"${start > 1 ? ` start="${start}"` : ''}>${cards.join('\n')}</ol>`;
+}
+
+// ---------------------------------------------------------------- ```bpe-explorer
+
+// A step-through of Byte-Pair Encoding: the corpus as pieces, the most frequent neighbouring
+// pair, then that pair merged, one merge per click. Every step is computed here at build time;
+// templates/widgets.js only shows them.
+//   ```bpe-explorer
+//   corpus: { low: 5, lowest: 2, newer: 6, wider: 3, new: 2 }
+//   merges: 8
+//   test: lower
+//   ```
+export function renderBpeExplorer(n, ctx) {
+  let cfg;
+  try {
+    cfg = loadYaml(n.text);
+  } catch (e) {
+    throw new LectureError(ctx.file, n.line, `\`\`\`bpe-explorer is not valid YAML: ${e.message.split('\n')[0]}`);
+  }
+  if (!cfg?.corpus || typeof cfg.corpus !== 'object') throw new LectureError(ctx.file, n.line, '```bpe-explorer needs corpus: { word: count, ... }');
+  const merges = Number(cfg.merges ?? 8);
+  let words = Object.entries(cfg.corpus).map(([w, c]) => ({ word: w, count: Number(c), pieces: [...w, '_'] }));
+  const countPairs = () => {
+    const pairs = new Map(); // insertion order breaks ties, like Python's Counter + max
+    for (const w of words) {
+      for (let i = 0; i < w.pieces.length - 1; i++) {
+        const key = w.pieces[i] + '\u0000' + w.pieces[i + 1];
+        const p = pairs.get(key) ?? { a: w.pieces[i], b: w.pieces[i + 1], count: 0, from: new Map() };
+        p.count += w.count;
+        p.from.set(w.word, w.count);
+        pairs.set(key, p);
+      }
+    }
+    return [...pairs.values()];
+  };
+  const steps = [];
+  const learned = [];
+  for (let k = 0; k <= merges; k++) {
+    const pairs = countPairs();
+    let best = null;
+    for (const p of pairs) if (!best || p.count > best.count) best = p;
+    const top = [...pairs].sort((x, y) => y.count - x.count).slice(0, 5);
+    if (best && !top.includes(best)) top[top.length - 1] = best;
+    steps.push({
+      words: words.map((w) => ({ word: w.word, count: w.count, pieces: [...w.pieces] })),
+      made: k > 0 ? learned[k - 1] : null,
+      learned: [...learned],
+      pairs: top.map((p) => ({ a: p.a, b: p.b, count: p.count, from: [...p.from].map(([w, c]) => `${w} ×${c}`).join(', '), best: p === best })),
+    });
+    if (k === merges || !best) break;
+    const merged = best.a + best.b;
+    learned.push(merged);
+    for (const w of words) {
+      const out = [];
+      for (let i = 0; i < w.pieces.length; i++) {
+        if (i < w.pieces.length - 1 && w.pieces[i] === best.a && w.pieces[i + 1] === best.b) {
+          out.push(merged);
+          i++;
+        } else out.push(w.pieces[i]);
+      }
+      w.pieces = out;
+    }
+  }
+  // a new word, cut with the learned merges applied in order
+  let test = null;
+  if (cfg.test) {
+    let pieces = [...String(cfg.test), '_'];
+    for (const m of learned) {
+      const out = [];
+      for (let i = 0; i < pieces.length; i++) {
+        if (i < pieces.length - 1 && pieces[i] + pieces[i + 1] === m) {
+          out.push(m);
+          i++;
+        } else out.push(pieces[i]);
+      }
+      pieces = out;
+    }
+    test = { word: String(cfg.test), pieces };
+  }
+  const data = { steps, test };
+  return `<figure class="ixp bpe" data-bpe="${esc(JSON.stringify(data))}">
+<figcaption class="ixp-head">${icon('pointer', 16)}${T(['ลองเล่น: BPE รวมคู่ทีละรอบ กด ถัดไป', 'Try it: BPE, one merge per click'])}</figcaption>
+<div class="ixp-body"><p class="ixp-nojs">${T(['ส่วนนี้ต้องเปิด JavaScript', 'This part needs JavaScript'])}</p></div>
+</figure>`;
 }

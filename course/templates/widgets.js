@@ -18,6 +18,7 @@
   function explorer(el) {
     var d;
     try { d = JSON.parse(el.getAttribute('data-ixp')); } catch (e) { return; }
+    if (!d) return;
     var body = el.querySelector('.ixp-body');
     var n = d.columns[0].shown.length;
     var name = d.name;
@@ -144,6 +145,92 @@
     render();
   }
 
-  var all = document.querySelectorAll('.ixp');
+  var all = document.querySelectorAll('.ixp[data-ixp]');
+  for (var i = 0; i < all.length; i++) explorer(all[i]);
+})();
+
+// ```bpe-explorer: Byte-Pair Encoding one merge at a time. Every step was computed at build
+// time (src/blocks.mjs); this only shows step k: the corpus as pieces (the piece made by the
+// last merge highlighted), the neighbouring pairs counted, and the vocabulary learned so far.
+(function () {
+  'use strict';
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function T(th, en) {
+    return '<span data-only="th">' + th + '</span><span data-only="en" lang="en">' + en + '</span>';
+  }
+  function chip(t, cls) {
+    return '<span class="bpe-chip' + (cls ? ' ' + cls : '') + '">' + esc(t) + '</span>';
+  }
+
+  function explorer(el) {
+    var d;
+    try { d = JSON.parse(el.getAttribute('data-bpe')); } catch (e) { return; }
+    var body = el.querySelector('.ixp-body');
+    var last = d.steps.length - 1;
+    var k = 0;
+
+    function render() {
+      var s = d.steps[k];
+      var html = '<div class="bpe-bar">' +
+        '<button type="button" data-go="first"' + (k === 0 ? ' disabled' : '') + '>' + T('เริ่มใหม่', 'Restart') + '</button>' +
+        '<button type="button" data-go="prev"' + (k === 0 ? ' disabled' : '') + '>◀ ' + T('ก่อนหน้า', 'Back') + '</button>' +
+        '<span class="bpe-count">' + T('รวมไปแล้ว ' + k + ' / ' + last + ' รอบ', k + ' of ' + last + ' merges') + '</span>' +
+        '<button type="button" class="bpe-next" data-go="next"' + (k === last ? ' disabled' : '') + '>' + T('ถัดไป', 'Next') + ' ▶</button>' +
+        '</div>';
+
+      // what just happened / what happens next
+      var best = null;
+      for (var i = 0; i < s.pairs.length; i++) if (s.pairs[i].best) best = s.pairs[i];
+      var say;
+      if (k === 0) say = T('เริ่มจากตัวอักษรเดี่ยว (_ คือท้ายคำ) แล้วนับคู่ที่อยู่ติดกัน', 'Start from single letters (_ marks the end of a word), then count the neighbouring pairs');
+      else say = T('รวม <b>' + esc(s.made) + '</b> แล้ว ทุกที่ที่คู่นี้อยู่ติดกันกลายเป็นชิ้นเดียว', 'Merged <b>' + esc(s.made) + '</b>: wherever the pair sat side by side, it is now one piece');
+      html += '<p class="bpe-say">' + say + '</p>';
+
+      // corpus
+      html += '<div class="bpe-grid"><div><p class="bpe-h">' + T('คลังคำ (แบ่งเป็นชิ้น)', 'Corpus, as pieces') + '</p><table class="bpe-words"><tbody>';
+      s.words.forEach(function (w) {
+        html += '<tr><th scope="row">' + esc(w.word) + ' <span class="bpe-x">×' + w.count + '</span></th><td>' +
+          w.pieces.map(function (p) { return chip(p, p === s.made ? 'bpe-new' : (p.length > 1 ? 'bpe-merged' : '')); }).join('') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+
+      // pair counts
+      html += '<div><p class="bpe-h">' + T('คู่ที่อยู่ติดกัน นับกี่ครั้ง', 'Neighbouring pairs, counted') + '</p><table class="bpe-pairs"><tbody>';
+      s.pairs.forEach(function (p) {
+        html += '<tr' + (p.best && k < last ? ' class="bpe-best"' : '') + '><td>' + chip(p.a) + '+' + chip(p.b) + '</td><td class="bpe-n">' + p.count + '</td><td class="bpe-from">' + esc(p.from) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      if (k < last && best) html += '<p class="bpe-next-say">' + T('มากที่สุด → รอบถัดไปจะรวม ', 'Most frequent → next merge: ') + chip(best.a) + '+' + chip(best.b) + ' → ' + chip(best.a + best.b, 'bpe-new') + '</p>';
+      html += '</div></div>';
+
+      // vocabulary
+      html += '<p class="bpe-h">' + T('ชิ้นที่เรียนได้ (ตามลำดับ)', 'Pieces learned, in order') + '</p><p class="bpe-vocab">' +
+        (s.learned.length ? s.learned.map(function (t, i) { return chip(t, i === s.learned.length - 1 ? 'bpe-new' : 'bpe-merged'); }).join(' ') : '<span class="bpe-none">' + T('ยังไม่มี', 'none yet') + '</span>') + '</p>';
+
+      if (k === last && d.test) {
+        html += '<p class="bpe-test">' + T('คำใหม่ที่ไม่เคยเห็น <b>' + esc(d.test.word) + '</b> ตัดได้เป็น ', 'A word never seen, <b>' + esc(d.test.word) + '</b>, becomes ') +
+          d.test.pieces.map(function (p) { return chip(p, p.length > 1 ? 'bpe-merged' : ''); }).join('') + '</p>';
+      }
+      body.innerHTML = html;
+    }
+
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-go]');
+      if (!b || !el.contains(b)) return;
+      var go = b.getAttribute('data-go');
+      if (go === 'next' && k < last) k++;
+      else if (go === 'prev' && k > 0) k--;
+      else if (go === 'first') k = 0;
+      e.stopPropagation(); // keep focus-mode click handlers out of it
+      render();
+      var again = el.querySelector('[data-go="' + (k === last ? 'prev' : go === 'first' ? 'next' : go) + '"]');
+      if (again && !again.disabled) again.focus();
+    });
+    render();
+  }
+
+  var all = document.querySelectorAll('.bpe');
   for (var i = 0; i < all.length; i++) explorer(all[i]);
 })();

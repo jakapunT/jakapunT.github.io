@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { esc, icon, T, UI, formatDate } from './render.mjs';
 import { fontFaceCss, preloadLinks } from './fonts.mjs';
+import { hasMath, katexCss } from './math.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const COURSE_DIR = path.resolve(HERE, '..');
@@ -62,8 +63,10 @@ ${preloadLinks(fontsUrl)}
 ${fontFaceCss(fontsUrl)}
 ${tokensCss()}
 ${read('templates/page.css')}
+${read('templates/interactives.css')}
 ${focusDeck ? read('templates/focus.css') : ''}
 ${editable ? read('templates/dev-edit.css') : ''}
+${hasMath(sectionsHtml + focusDeck) ? katexCss(fontsUrl) : ''}
 </style>
 </head>
 <body>
@@ -105,6 +108,7 @@ ${focusDeck}
 <script>
 ${read('templates/page.js')}
 ${read('templates/widgets.js')}
+${read('templates/interactives.js')}
 ${focusDeck ? read('templates/focus.js') : ''}
 </script>
 ${editable ? `<script>${read('templates/dev-edit.js')}</script>` : dev ? `<script>new EventSource('/__reload').onmessage=function(e){if(e.data==='reload')location.reload()}</script>` : ''}

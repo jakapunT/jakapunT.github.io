@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { copyKatexFonts } from './math.mjs';
 
 const require = createRequire(import.meta.url);
 const pkgDir = (name) => path.dirname(require.resolve(`${name}/package.json`));
@@ -41,6 +42,7 @@ export function copyFonts(outDir) {
     const dst = path.join(dir, f);
     if (!fs.existsSync(dst) || fs.statSync(dst).size !== fs.statSync(src).size) fs.copyFileSync(src, dst);
   }
+  copyKatexFonts(dir); // math (math.mjs)
 }
 
 // urlPrefix: path from the page to the _fonts folder, e.g. "../_fonts/"

@@ -4,12 +4,15 @@
 
 Rules
 - Cells run top to bottom in one namespace, with the course's data/ folder as the working
-  directory, so pd.read_csv("airline_reviews.csv") works as it does after uploading in Colab.
+  directory, so pd.read_csv("airline_reviews.csv") works as it does with the CSV next to the student's .py file.
 - Like Jupyter, a bare expression on the last line is displayed. A DataFrame result becomes a
   table (```output {table=...}); anything else becomes text.
 - Each python cell's following ```output block is replaced, or inserted if missing.
 - {run=false} on a cell skips it. {output=false} runs it but writes no output block.
   Lines starting with ! or % (pip installs, magics) are skipped.
+- {plot="images/l11-name.png"} on a cell saves the figure it draws (matplotlib/seaborn) to that
+  file and writes ```output {plot="..."}, which the page shows as the chart. End such cells with
+  plt.show(), as students do.
 - The previous version of the file is kept in .preview/.history/ before writing.
 """
 
@@ -24,6 +27,16 @@ import sys
 import traceback
 
 import pandas as pd
+
+try:  # plotting cells need matplotlib (and seaborn); lessons without plots don't
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.show = lambda *args, **kwargs: None  # the figure is saved instead (see {plot=...})
+except ImportError:
+    plt = None
 
 FENCE = re.compile(r"^(\s*)(`{3,}|~{3,})\s*([\w-]*)\s*(.*?)\s*$")
 TABLE_ROWS = 10
@@ -132,9 +145,21 @@ def main():
             if cell["attrs"].get("run") == "false":
                 results.append(None)
                 continue
+            plot = cell["attrs"].get("plot")
+            if plot and plt is not None:
+                plt.close("all")
             kind, text, note = run_cell(cell["code"], ns)
+            if plot and kind != "error":
+                if plt is None or not plt.get_fignums():
+                    kind, text = "error", "plot: this cell drew no figure (is matplotlib installed in course/.venv?)"
+                else:
+                    out_file = os.path.join(course_dir, plot)
+                    os.makedirs(os.path.dirname(out_file), exist_ok=True)
+                    plt.gcf().savefig(out_file, dpi=144, bbox_inches="tight", facecolor="white", metadata={"Software": None})
+                    plt.close("all")
+                    kind, note = "plot", plot
             results.append((kind, text, note))
-            flag = {"error": "  ✗ raised", "table": "  table"}.get(kind, "")
+            flag = {"error": "  ✗ raised", "table": "  table", "plot": f"  plot → {note}"}.get(kind, "")
             print(f"cell {n:>2} (line {cell['start'] + 1}){flag}")
     finally:
         os.chdir(cwd)
@@ -145,7 +170,7 @@ def main():
             continue
         kind, text, note = res
         ind = cell["indent"]
-        if not text.strip():
+        if not text.strip() and kind != "plot":
             if cell["out"]:  # nothing printed: drop a stale output block
                 a, b = cell["out"]
                 del lines[cell["end"] + 1 : b + 1]
@@ -155,7 +180,10 @@ def main():
             head += f' {{table="{note}"}}'
         elif kind == "error":
             head += " {error=true}"
-        block = [head] + [ind + l if l else l for l in text.split("\n")] + [f"{ind}```"]
+        elif kind == "plot":
+            head += f' {{plot="{note}"}}'
+        body = text.split("\n") if text.strip() else []
+        block = [head] + [ind + l if l else l for l in body] + [f"{ind}```"]
         if cell["out"]:
             a, b = cell["out"]
             lines[a : b + 1] = block
