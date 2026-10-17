@@ -18,6 +18,26 @@
     }
   }
   setLang(root.getAttribute('data-lang') === 'en' ? 'en' : 'th', false);
+
+  // ---------- hide / show the lesson menu ----------
+  var TOC_KEY = 'course-toc';
+  function setToc(collapsed, save) {
+    root.classList.toggle('toc-collapsed', collapsed);
+    var t = document.querySelector('[data-toc-toggle]');
+    if (t) {
+      var label = collapsed ? 'แสดงเมนู / Show menu' : 'ซ่อนเมนู / Hide menu';
+      t.setAttribute('aria-expanded', String(!collapsed));
+      t.setAttribute('aria-label', label);
+      t.setAttribute('title', label);
+    }
+    if (save) {
+      try { localStorage.setItem(TOC_KEY, collapsed ? 'collapsed' : 'open'); } catch (e) { /* private mode */ }
+    }
+  }
+  try { setToc(localStorage.getItem(TOC_KEY) === 'collapsed', false); } catch (e) { setToc(false, false); }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-toc-toggle]')) setToc(!root.classList.contains('toc-collapsed'), true);
+  });
   // Thai and English differ in length, so switching would jump the page. Keep the section
   // being read at the same place on screen.
   function readingAnchor() {

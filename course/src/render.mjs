@@ -104,6 +104,7 @@ const ICON_PATHS = {
   pointer: '<path d="M9 4v10.5l2.6-2.4 2.1 4.6 2.2-1-2.1-4.5H17Z"/><path d="M4 4h2M4 8h2M4 12h2"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/>',
   pdf: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/>',
+  sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5"/>',
 };
 export const icon = (name, size = 14) =>
   `<svg aria-hidden="true" focusable="false" class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
@@ -126,14 +127,15 @@ function renderToc(sections) {
   const items = sections
     .map(
       (s, i) =>
-        `<li><a href="#${s.id}" data-toc="${s.id}"><span class="toc-n">${i + 1}</span><span lang="en">${inline(navLabel(s))}</span></a></li>`,
+        `<li><a href="#${s.id}" data-toc="${s.id}" title="${esc(navLabel(s).replace(/[*`]/g, ''))}"><span class="toc-n">${i + 1}</span><span lang="en">${inline(navLabel(s))}</span></a></li>`,
     )
     .join('');
   const legend = ['concept', 'example', 'code', 'exercise', 'warning']
     .map((k) => `<li><span class="swatch swatch-${k}" aria-hidden="true"></span>${T(UI[k])}</li>`)
     .join('');
+  // the toggle collapses the menu to a rail of section numbers (page.js remembers the choice)
   return `<nav class="toc card" aria-label="ในบทเรียนนี้ / In this lesson">
-<p class="toc-title">${T(UI.inLesson)}</p>
+<div class="toc-head"><p class="toc-title">${T(UI.inLesson)}</p><button type="button" class="toc-toggle" data-toc-toggle aria-expanded="true" aria-label="ซ่อนเมนู / Hide menu" title="ซ่อนเมนู / Hide menu">${icon('sidebar', 18)}</button></div>
 <ol class="toc-list">${items}</ol>
 <ul class="legend" aria-label="ประเภทเนื้อหา / Content kinds">${legend}</ul>
 </nav>`;
@@ -450,7 +452,7 @@ export function renderDeflist(n, ctx) {
 // ---------------------------------------------------------------- code cells
 
 // plt./sns. calls draw or label a chart (plt.show() returns None), so they are never wrapped in print()
-const PY_STATEMENT = /^(import|from|def|class|if|elif|else|for|while|with|try|except|finally|return|raise|assert|pass|break|continue|global|nonlocal|del|async|await|print\s*\(|plt\.|sns\.|@|#)/;
+const PY_STATEMENT = /^(import|from|def|class|if|elif|else|for|while|with|try|except|finally|return|raise|assert|pass|break|continue|global|nonlocal|del|async|await|print\s*\(|plt\.|sns\.|st\.|@|#)/;  // st.* = Streamlit draws it on the page itself
 
 // VS Code runs a file, which prints nothing for a bare final expression, so wrap it in print().
 export function wrapLastExpression(code) {

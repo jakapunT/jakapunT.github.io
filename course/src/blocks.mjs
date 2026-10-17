@@ -175,9 +175,12 @@ export function renderFigure(n, ctx) {
     media = `<img src="data:${type};base64,${bytes.toString('base64')}" alt="${esc(alt ?? captionEn)}">`;
   }
   const credit = source ? ` <a class="fig-source" href="${esc(source)}" target="_blank" rel="noopener">${T(['ที่มา', 'Source'])}</a>` : '';
+  // no caption text (a projector-only copy whose caption the teacher says): no caption line at all
+  const caption = captionTh || captionEn
+    ? `\n<figcaption class="fig-caption"><span class="fig-n">${T([`รูปที่ ${label}`, `Figure ${label}`])}</span> ${T([inline(captionTh), inline(captionEn)], { thHtml: true, enHtml: true })}${credit}</figcaption>`
+    : '';
   return `<figure class="fig">
-<div class="fig-media">${media}</div>
-<figcaption class="fig-caption"><span class="fig-n">${T([`รูปที่ ${label}`, `Figure ${label}`])}</span> ${T([inline(captionTh), inline(captionEn)], { thHtml: true, enHtml: true })}${credit}</figcaption>
+<div class="fig-media">${media}</div>${caption}
 </figure>`;
 }
 

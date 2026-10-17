@@ -136,7 +136,18 @@ main { display: flex; flex-direction: column; gap: var(--gap-cards); min-width: 
 
 /* ---------- table of contents ---------- */
 .toc { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100vh - var(--topbar-h) - 32px); overflow-y: auto; padding: 24px; border-radius: 20px; box-shadow: none; }
+.toc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+.toc-head .toc-title { margin: 0; }
 .toc-title { margin: 0 0 10px; font-size: var(--text-small); font-weight: 600; color: var(--muted); }
+.toc-toggle { flex: 0 0 auto; display: grid; place-items: center; width: var(--tap); height: var(--tap); margin: -8px -10px -8px 0; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
+.toc-toggle:hover { background: var(--cream); color: var(--ink); }
+/* collapsed: a narrow rail of section numbers, and the lesson takes the freed width */
+.toc-collapsed .layout { grid-template-columns: 64px minmax(0, calc(var(--reading-max) + 196px)); }
+.toc-collapsed .toc { padding: 12px 6px; }
+.toc-collapsed .toc-head { justify-content: center; }
+.toc-collapsed .toc-head .toc-toggle { margin: 0; }
+.toc-collapsed .toc-title, .toc-collapsed .legend, .toc-collapsed .toc-list a > [lang] { display: none; }
+.toc-collapsed .toc-list a { grid-template-columns: 1fr; justify-items: center; padding: 6px 0; }
 .toc-title [lang='en'] { font-size: var(--text-label); }
 .toc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-small); line-height: 1.45; }
 .toc-list a {
@@ -783,6 +794,36 @@ thead .ixp-c-idx { padding: calc(6 * var(--ix)) calc(12 * var(--ix)); font-famil
 .dv-tree { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .dv-file { fill: var(--card); stroke: var(--card-border); stroke-width: 1.4; }
 .dv-secret { fill: var(--tag-warning-bg); stroke: var(--accent); stroke-width: 1.8; }
+/* lesson 14 Streamlit infographics (scripts/diagrams/l14_figures.py) */
+.st-brace { fill: none; stroke: var(--ink); stroke-width: 2.5; }
+.st-track { stroke: var(--card-border); stroke-width: 6; stroke-linecap: round; }
+.st-track-on { stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+.st-knob { fill: var(--accent); }
+.st-knob-t { font: 700 15px var(--font-head); fill: var(--accent); }
+.st-run { fill: none; stroke: #8fd18f; stroke-width: 3; }
+.st-bar { fill: var(--tag-concept-dot); }
+.st-page { fill: var(--card); stroke: var(--card-border); stroke-width: 1.6; }
+.st-side { fill: var(--tag-concept-bg); }
+.st-title { font: 700 26px var(--font-head); fill: var(--ink); }
+.st-metric { fill: var(--card); stroke: var(--card-border); stroke-width: 1.4; }
+.st-big { font: 700 24px var(--font-head); fill: var(--ink); }
+.st-tab { fill: var(--card); stroke: var(--card-border); stroke-width: 1.2; }
+.st-tab-on { fill: var(--tag-concept-bg); stroke: var(--tag-concept-dot); stroke-width: 1.6; }
+.st-load { fill: var(--accent); opacity: .8; }
+.st-fast { fill: var(--tag-exercise-fg); }
+.st-loop { fill: none; stroke: var(--tag-exercise-fg); stroke-width: 2; stroke-dasharray: 5 4; }
+.ws-req { font: 600 17px var(--font-text); fill: var(--accent); }
+.ws-res { font: 600 17px var(--font-text); fill: var(--tag-exercise-fg); }
+.ws-step { font: 700 16px var(--font-head); fill: var(--ink); }
+.rr-term { font: 700 20px var(--font-head); fill: var(--accent); }
+.rr-app { font: 600 16px var(--font-text); fill: var(--ink); }
+.gt-dot { fill: var(--accent); }
+.gt-line { stroke: var(--accent); stroke-width: 3; }
+.gt-verb { font: 700 17px var(--font-head); fill: var(--accent); }
+.gt-small { font: 600 13.5px var(--font-text); fill: var(--ink); }
+.gt-tiny { font: 600 12px var(--font-text); fill: var(--ink); }
+.gt-ok { font: 600 14px var(--font-code); fill: var(--tag-exercise-fg); }
+.gt-icon-w { font: 700 22px var(--font-head); fill: var(--card); }
 
 .cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; align-items: center; }
 .cols-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -807,6 +848,12 @@ thead .ixp-c-idx { padding: calc(6 * var(--ix)) calc(12 * var(--ix)); font-famil
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .toc { position: static; }
+  /* on a narrow screen the menu sits above the lesson: collapsed hides the list */
+  .toc-collapsed .layout { grid-template-columns: minmax(0, 1fr); }
+  .toc-collapsed .toc { padding: 12px 16px; }
+  .toc-collapsed .toc-head { justify-content: space-between; }
+  .toc-collapsed .toc-title { display: block; }
+  .toc-collapsed .toc-list { display: none; }
   .legend { flex-direction: row; flex-wrap: wrap; gap: 4px 16px; }
 }
 @media (max-width: 600px) {
